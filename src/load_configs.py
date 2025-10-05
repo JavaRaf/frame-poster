@@ -1,5 +1,7 @@
 from pathlib import Path
+
 from ruamel.yaml import YAML
+
 from src.logger import get_logger
 
 # Creating YAML instance and configuring it for consistent YAML parsing and writing

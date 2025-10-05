@@ -1,14 +1,8 @@
-from src.logger import get_logger
-from dotenv import load_dotenv
 import os
 
+from dotenv import load_dotenv
 
-
-
-
-
-
-
+from src.logger import get_logger
 
 load_dotenv(".env")
 logger = get_logger(__name__)

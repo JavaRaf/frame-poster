@@ -1,12 +1,11 @@
 import re
 from functools import lru_cache
-from src.logger import get_logger
 from pathlib import Path
-from src.frame_utils import timestamp_to_seconds
+
 from langdetect import detect
 
-
-
+from src.frame_utils import timestamp_to_seconds
+from src.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -48,7 +47,7 @@ def remove_tags(message: str) -> str:
 
 
 @lru_cache(maxsize=32)
-def parse_subtitle_file(file_path: Path) -> dict:
+def parse_ass_file(file_path: Path) -> dict:
     """
     Reads and parses a .ass subtitle file, returning subtitle information and detected language.
     Uses cache to avoid parsing the same file multiple times.
@@ -95,12 +94,76 @@ def parse_subtitle_file(file_path: Path) -> dict:
             continue
 
     return {
-        "file": file_path.name,
+        "file_name": file_path.name,
         "language": language_name,
         "subtitles": subtitles_data
     }
 
+def parse_srt_file(file_path: Path) -> dict:
+    pass
 
-        
+def __ass_format(frame_number: int, img_fps: float, subtitles_data: dict) -> str | None:
+    """
+    Returns the formatted text of the active subtitle for the current frame.
+    """
+    time = frame_number / img_fps # frame_number in seconds
+
+    for sub in subtitles_data.get("subtitles", []):
+        if sub["Start"] <= time <= sub["End"]:
+            style = (sub.get("Style") or "").lower()
+            actor = (sub.get("Actor") or "").lower()
+            text = sub.get("Text", "")
+
+            if style.startswith("sign") or actor.startswith("sign"):
+                text = f"【 {text} 】"
+            elif "lyric" in style or "song" in style or "lyric" in actor or "song" in actor:
+                text = f"♪ {text} ♪\n"
+
+            return f"[{subtitles_data.get('language', '')}]\n{text}"
+
+    return None
+
+def get_subtitle_for_frame(frame_number: int, episode_number: int, image_fps: (int | float)) -> str | None:
+    """
+    Returns formatted subtitle messages for a given frame and episode.
+
+    Args:
+        frame_number (int): The frame number to retrieve subtitles for.
+        episode_number (int): The episode number to look up subtitle files.
+        image_fps (int | float): The frames per second of the image/video.
+
+    Returns:
+        str | None: The formatted subtitle messages, or None if not found.
+    """
+    if not isinstance(frame_number, int) or not isinstance(episode_number, int):
+        logger.error("Error, frame_number and episode_number must be integers.")
+        return None
+
+    subtitles_root_folder = Path("subtitles")
+    episode_subtitles_folder = subtitles_root_folder / f"{episode_number:02d}"
+
+    subtitle_files = [subtitle_file for subtitle_file in episode_subtitles_folder.iterdir() if subtitle_file.is_file()]
+    if not subtitle_files:
+        logger.error(f"No subtitle files found in folder '{episode_subtitles_folder}'.")
+        return None
+
+    formatted_messages = ""
+    for subtitle_file in subtitle_files:
+        match subtitle_file.suffix:
+            case ".ass":
+                ass_subtitles_data = parse_ass_file(subtitle_file)
+                formatted_message = __ass_format(frame_number, image_fps, ass_subtitles_data)
+            case ".srt":
+                formatted_message = None
+            case _:
+                formatted_message = None
+
+        if formatted_message:
+            formatted_messages += formatted_message + "\n\n"
+
+    return formatted_messages or None
+
+
+
 
 
