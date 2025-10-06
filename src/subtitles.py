@@ -133,10 +133,7 @@ def get_subtitle_for_frame(frame_number: int, episode_number: int, image_fps: (i
     Returns:
         str | None: The formatted subtitle messages, or None if not found.
     """
-    # If posting_subtitles is false, return None to avoid posting subtitles
-    if configs.get("posting", {}).get("posting_subtitles", False):
-        return None
-
+    
     if not isinstance(frame_number, int) or not isinstance(episode_number, int):
         logger.error("Error, frame_number and episode_number must be integers.")
         return None

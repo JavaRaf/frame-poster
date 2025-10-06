@@ -13,9 +13,10 @@ github:
 
 
 # 
-current_posting:
-  season: 1
-  episode: 1
+in_progress:
+  season:  1  # start from 1
+  episode: 1  # start from 1
+  frame:   0  # start from 0
 
 
 
@@ -39,7 +40,7 @@ episodes:
   15:
   16:
   17:
-  18
+  18:
   19:
   20:
   21:
@@ -56,9 +57,23 @@ episodes:
 posting:
   fph: 15                                  # Frames posted per cicle (format: integer)                            
   posting_interval: 2                      # Interval between posts in minutes (recomended: 2 or more)(format: integer)
-  posting_subtitles: true                  # true or false (format: boolean) -> If true, the subtitles will be posted
+  posting_subtitles: true                  # If true, the subtitles will be posted on comments (format: boolean)
 
   random_crop:                             # Random crop settings
-    enabled: true                          # true or false
+    enabled: true                          # If true, the image will be cropped randomly and posted on comments (format: boolean)
     min_x: 200                             # Minimum crop width (format: integer)
     min_y: 600                             # Minimum crop height (format: integer)
+
+  
+# placeholders:
+#   season: The season number
+#   episode: The episode number
+#   frame: The frame number
+#   total_frames: The total frames in the episode
+#   timestamp: The timestamp of the frame
+#   subtitles: The subtitles of the frame
+post_msg: |
+  Season {season}, Episode {episode}, Frame {frame} out of {total_frames}
+  timestamp: {timestamp}
+
+
