@@ -1,0 +1,64 @@
+github:
+  username: JavaRaf                         # Your GitHub username (format: string)
+  repo: frames                              # The name of the repo where the episodes which the frames are stored
+  branch: main                              # The branch of the repo where the episodes which the frames are stored
+  
+  # Example: 
+  # javaRafa/
+  # └── frames/
+  #     └── 01/
+  #         ├── frame_0001.jpg
+  #         ├── frame_0002.jpg
+  #         └── frame_0003.jpg
+
+
+# 
+current_posting:
+  season: 1
+  episode: 1
+
+
+
+episodes:
+  1:
+    image_fps: 3.5
+    frames: 100
+  2:
+  3:
+  4:
+  5:
+  6:
+  7:
+  8:
+  9:
+  10:
+  11:
+  12: 
+  13:
+  14:
+  15:
+  16:
+  17:
+  18
+  19:
+  20:
+  21:
+  22:
+  23:
+  24:
+  25:
+  26:
+  27:
+  28:
+
+
+
+posting:
+  fph: 15                                  # Frames posted per cicle (format: integer)                            
+  posting_interval: 2                      # Interval between posts in minutes (recomended: 2 or more)(format: integer)
+  posting_subtitles: true                  # true or false (format: boolean) -> If true, the subtitles will be posted
+
+  random_crop:                             # Random crop settings
+    enabled: true                          # true or false
+    min_x: 200                             # Minimum crop width (format: integer)
+    min_y: 600                             # Minimum crop height (format: integer)

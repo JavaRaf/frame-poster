@@ -1,7 +1,9 @@
 import re
+from tenacity import retry, stop_after_attempt, wait_exponential
 from functools import lru_cache
 from pathlib import Path
 
+import httpx
 from langdetect import detect
 
 from src.frame_utils import timestamp_to_seconds
@@ -33,8 +35,6 @@ LANGUAGE_CODES = {
 }
 
 
-
-
 def remove_tags(message: str) -> str:
     """Remove ASS/SSA tags and control codes from a subtitle string."""
     if not message or not isinstance(message, str):
@@ -43,8 +43,6 @@ def remove_tags(message: str) -> str:
     pattern = re.compile(r"\{\s*[^}]*\s*\}|\\N|\\[a-zA-Z]+\d*|\\c&H[0-9A-Fa-f]+&")
     message = pattern.sub(" ", message)
     return re.sub(r"\s+", " ", message).strip()
-
-
 
 @lru_cache(maxsize=32)
 def parse_ass_file(file_path: Path) -> dict:
@@ -123,7 +121,7 @@ def __ass_format(frame_number: int, img_fps: float, subtitles_data: dict) -> str
 
     return None
 
-def get_subtitle_for_frame(frame_number: int, episode_number: int, image_fps: (int | float)) -> str | None:
+def get_subtitle_for_frame(frame_number: int, episode_number: int, image_fps: (int | float), configs: dict) -> str | None:
     """
     Returns formatted subtitle messages for a given frame and episode.
 
@@ -131,10 +129,14 @@ def get_subtitle_for_frame(frame_number: int, episode_number: int, image_fps: (i
         frame_number (int): The frame number to retrieve subtitles for.
         episode_number (int): The episode number to look up subtitle files.
         image_fps (int | float): The frames per second of the image/video.
-
+        configs (dict): The configuration dictionary.
     Returns:
         str | None: The formatted subtitle messages, or None if not found.
     """
+    # If posting_subtitles is false, return None to avoid posting subtitles
+    if configs.get("posting", {}).get("posting_subtitles", False):
+        return None
+
     if not isinstance(frame_number, int) or not isinstance(episode_number, int):
         logger.error("Error, frame_number and episode_number must be integers.")
         return None

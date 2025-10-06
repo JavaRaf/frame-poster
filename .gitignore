@@ -12,3 +12,4 @@ __pycache__/
 .env
 test.py
 pyproject.toml
+subtitles/*/
