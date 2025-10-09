@@ -30,7 +30,7 @@ def load_configs() -> dict:
 
     try:
         # Opens and loads the YAML configuration file
-        with CONFIGS_PATH.open("r") as file:
+        with CONFIGS_PATH.open("r", encoding="utf-8") as file:
             configs = yaml.load(file)
             # Ensures that a dictionary is always returned
             if configs is None:
@@ -41,3 +41,9 @@ def load_configs() -> dict:
         # Logs any exception that occurs during loading
         logger.error(f"Error while loading configs: {error}", exc_info=True)
         return {}
+
+
+
+def save_configs(configs: dict):
+    with CONFIGS_PATH.open("w", encoding="utf-8") as file:
+        yaml.dump(configs, file)

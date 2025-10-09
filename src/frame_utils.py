@@ -61,12 +61,12 @@ def timestamp_to_seconds(time_str: str) -> float | None:
 
 
 
-def frame_to_timestamp(img_fps: (int | float), current_frame: int) -> str | None:
+def frame_to_timestamp(current_frame: int, img_fps: (int | float)) -> str | None:
     """Converts frame number to timestamp in .ass format (H:MM:SS.CC).
 
     Args:
-        img_fps (int | float): Frames per second of the video.
         current_frame (int): Current frame number.
+        img_fps (int | float): Frames per second of the video.
 
     Returns:
         str | None: Timestamp in the format 'H:MM:SS.CC', or None if error occurs.

@@ -2,7 +2,6 @@ github:
   username: JavaRaf                         # Your GitHub username (format: string)
   repo: frames                              # The name of the repo where the episodes which the frames are stored
   branch: main                              # The branch of the repo where the episodes which the frames are stored
-  
   # Example: 
   # javaRafa/
   # └── frames/
@@ -12,19 +11,19 @@ github:
   #         └── frame_0003.jpg
 
 
-# 
+# progress
 in_progress:
-  season:  1  # start from 1
-  episode: 1  # start from 1
-  frame:   0  # start from 0
-
-
+  season: 1  # start from 1
+  episode: 1 # start from 1
+  frame: 0  # start from 0
 
 episodes:
   1:
-    image_fps: 3.5
-    frames: 100
+    image_fps: 3.5   # frames per second of the image/video
+    frames: 15       # total frames in the episode
   2:
+    image_fps: 3.5   # frames per second of the image/video
+    frames: 15       # total frames in the episode
   3:
   4:
   5:
@@ -34,7 +33,7 @@ episodes:
   9:
   10:
   11:
-  12: 
+  12:
   13:
   14:
   15:
@@ -64,7 +63,6 @@ posting:
     min_x: 200                             # Minimum crop width (format: integer)
     min_y: 600                             # Minimum crop height (format: integer)
 
-  
 # placeholders:
 #   season: The season number
 #   episode: The episode number
