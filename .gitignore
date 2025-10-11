@@ -13,3 +13,5 @@ __pycache__/
 test.py
 pyproject.toml
 subtitles/*/
+images/*/
+temp/*/
