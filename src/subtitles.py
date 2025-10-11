@@ -121,7 +121,7 @@ def __ass_format(frame_number: int, img_fps: float, subtitles_data: dict) -> str
 
     return None
 
-def get_subtitle_for_frame(frame_number: int, episode_number: int, image_fps: (int | float), configs: dict) -> str | None:
+def get_subtitle_for_frame(frame_number: int, episode_number: int, image_fps: (int | float)) -> str | None:
     """
     Returns formatted subtitle messages for a given frame and episode.
 
@@ -129,7 +129,6 @@ def get_subtitle_for_frame(frame_number: int, episode_number: int, image_fps: (i
         frame_number (int): The frame number to retrieve subtitles for.
         episode_number (int): The episode number to look up subtitle files.
         image_fps (int | float): The frames per second of the image/video.
-        configs (dict): The configuration dictionary.
     Returns:
         str | None: The formatted subtitle messages, or None if not found.
     """
