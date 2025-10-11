@@ -1,17 +1,20 @@
 import os
+import time
 
 from dotenv import load_dotenv
 
 from src.logger import get_logger
 from src.load_configs import load_configs, save_configs
-from src.frame_utils import frame_to_timestamp, timestamp_to_frame
+from src.frame_utils import frame_to_timestamp, timestamp_to_frame, get_frame
 from src.subtitles import get_subtitle_for_frame
 from src.message import format_message
-
+from src.facebook import FacebookAPI
+from src.poster import post_frame, post_subtitles, post_random_crop, next_episode
 
 
 logger = get_logger(__name__)
-load_dotenv(".env")
+facebook = FacebookAPI(api_version="v21.0")
+
 
 
 
@@ -42,33 +45,47 @@ def main():
     POST_MSG = CONFIGS.get("post_msg", "")
 
     
-    for i in range(PREV_FRAME + 1, LAST_FRAME + 1):
-        print(f"Posting frame {i} of {EPISODE_TOTAL_FRAMES}")
+    for frame_number in range(PREV_FRAME + 1, LAST_FRAME + 1):
+        # se o frame for maior que o total de frames no episodio, pula para o proximo episodio
+        if frame_number > EPISODE_TOTAL_FRAMES: 
+            next_episode(CONFIGS)
 
         # baixar o frame
-        # salvar o frame e pegar o path
-
+        frame_path = get_frame(frame_number, CURRENT_EPISODE, GITHUB)
+        if not frame_path:
+            logger.error(f"Error while downloading frame {frame_number} from episode {CURRENT_EPISODE:02d}.")
+            break
+        
         # pegar o subtitle do frame
-        # subtitle aqui
+        subtitles = get_subtitle_for_frame(frame_number, CURRENT_EPISODE, IMG_FPS)
 
-
-        # formatar a mensagem
+        # formatar a mensagem do post
         placeholders = {
             "season": SEASON,
             "episode": CURRENT_EPISODE,
-            "frame": i,
+            "frame": frame_number,
             "total_frames": EPISODE_TOTAL_FRAMES,
-            "timestamp": frame_to_timestamp(i, IMG_FPS),
-            #"subtitles": SUBTITLES,
+            "timestamp": frame_to_timestamp(frame_number, IMG_FPS),
+            "subtitles": subtitles or "",
         }
         message = format_message(POST_MSG, placeholders)
 
-        # postar o frame com a mensagem
-        
+        if not message:
+            logger.error(f"Error while formatting message for frame {frame_number} from episode {CURRENT_EPISODE:02d}.")
+            break
+
+        # postar o frame com a mensagem (placeholders apenas para formatar a mensagem no terminal)
+        post_id = post_frame(message, frame_path, placeholders)
+        if not post_id:
+            logger.error(f"After several attempts, it was not possible to post frame {frame_number} of episode {CURRENT_EPISODE:02d}.")
+            break
 
         # usar o id de resposta do post pra postar as legendas no comentarios
+        post_subtitles(post_id, frame_number, CURRENT_EPISODE, subtitles, CONFIGS)
         # usar o id de resposta do post pra postar o random crop no comentarios
+        post_random_crop(post_id, frame_path, CONFIGS)
 
+        print(f"{'-' * 50}\n\n") # makes visualization better in CI/CD environments
 
 
 
