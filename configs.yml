@@ -15,7 +15,7 @@ github:
 in_progress:
   season: 1  # start from 1
   episode: 1 # start from 1
-  frame: 0  # start from 0
+  frame: 11  # start from 0
 
 episodes:
   1:
