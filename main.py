@@ -3,15 +3,14 @@ import time
 
 from dotenv import load_dotenv
 
-from src.logger import get_logger
-from src.load_configs import load_configs, save_configs
-from src.frame_utils import frame_to_timestamp, timestamp_to_frame, get_frame
-from src.subtitles import get_subtitle_for_frame
-from src.message import format_message
 from src.facebook import FacebookAPI
-from src.poster import post_frame, post_subtitles, post_random_crop, next_episode
+from src.frame_utils import frame_to_timestamp, get_frame, timestamp_to_frame
+from src.load_configs import load_configs, save_configs
+from src.logger import get_logger
+from src.message import format_message
+from src.poster import next_episode, post_frame, post_random_crop, post_subtitles
+from src.subtitles import get_subtitle_for_frame
 from src.workflow import get_workflow_execution_interval
-
 
 logger = get_logger(__name__)
 facebook = FacebookAPI(api_version="v21.0")

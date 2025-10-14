@@ -1,10 +1,10 @@
 import re
-from tenacity import retry, stop_after_attempt, wait_exponential
 from functools import lru_cache
 from pathlib import Path
 
 import httpx
 from langdetect import detect
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.frame_utils import timestamp_to_seconds
 from src.logger import get_logger

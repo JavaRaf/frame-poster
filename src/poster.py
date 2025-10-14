@@ -11,8 +11,8 @@ from time import sleep
 
 # Third party imports
 from src.facebook import FacebookAPI
-from src.logger import get_logger
 from src.frame_utils import random_crop
+from src.logger import get_logger
 
 # Initialize services
 fb = FacebookAPI()
