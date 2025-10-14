@@ -5,7 +5,7 @@ from typing import List
 from dotenv import load_dotenv
 
 import httpx
-from src.frame_utils import timestamp_to_frame
+from src.frame_utils import client, timestamp_to_frame
 from src.load_configs import load_configs
 from tenacity import retry
 from tenacity import (
@@ -18,6 +18,8 @@ from tenacity import (
 from src.logger import get_logger
 
 logger = get_logger(__name__)
+FB_LOG_PATH = Path.cwd() / "logs" / "fb_log.txt"
+FB_LOG_PATH.touch(exist_ok=True)
 
 # Carrega as variáveis de ambiente do arquivo .env
 # O parâmetro override=False garante que as variáveis de ambiente não sejam sobrescritas
@@ -36,7 +38,7 @@ class FacebookAPI:
             logger.error("FB_TOKEN not defined")
             raise ValueError("FB_TOKEN not defined")
 
-        self.base_url = f"https://graph.facebook.com/{api_version}/"
+        self.base_url = f"https://graph.facebook.com/{api_version}"
         self.access_token = os.getenv("FB_TOKEN", None)
         self.client = httpx.Client(base_url=self.base_url, timeout=httpx.Timeout(30, connect=10))
 
@@ -94,3 +96,27 @@ class FacebookAPI:
                 return None
 
     
+
+
+    def save_fb_log(self, post_id: str, frame: int, episode: int) -> None:
+        try:
+            with FB_LOG_PATH.open("a", encoding="utf-8") as file:
+                file.write(f"frame {frame}, episode {episode} - https://facebook.com/{post_id}\n")
+        except Exception as e:
+            logger.error(f"Error while saving fb log: {e}", exc_info=True)
+
+
+
+    def update_bio(self, message: str) -> bool:
+        endpoint = f"{self.base_url}/me"
+        params = {"access_token": self.access_token, "about": message}
+
+        try:
+            response = self.client.post(endpoint, params=params)
+            if response.status_code == 200:
+                return True
+            return False
+            
+        except Exception as e:
+            logger.error(f"Failed to update bio: {e}", exc_info=True)
+            return False

@@ -25,9 +25,9 @@ def post_frame(message: str, frame_path: Path, placeholders: dict) -> str | None
         post_id = fb.post_frame(message, frame_path)
         if post_id:
             print(
-                f"├── season {placeholders.get('season')}, "
-                f"episode {placeholders.get('episode')}, "
-                f"frame {placeholders.get('frame')} out of {placeholders.get('total_frames')} has been posted", flush=True)
+                f"├── season {placeholders.get('season_number')}, "
+                f"episode {placeholders.get('episode_number')}, "
+                f"frame {placeholders.get('frame_number')} out of {placeholders.get('max_frames')} has been posted", flush=True)
             sleep(2)
         else:
             logger.error("✖ Failed to post frame (main, post_frame)")
@@ -36,21 +36,15 @@ def post_frame(message: str, frame_path: Path, placeholders: dict) -> str | None
         logger.error(f"✖ Error posting frame: {e}")
         return None
     
-def post_subtitles(post_id: str, frame_number: int, episode: int, subtitle: str, configs: dict) -> str | None:
+def post_subtitles(post_id: str, frame_number: int, episode_number: int, subtitle: str, configs: dict) -> str | None:
     """Post the subtitles associated with the frame."""
     if not configs.get("posting", {}).get("posting_subtitles", False):
         return None
 
     if not subtitle:
         return None
-
-    if configs.get("filters", {}).get("two_panels", {}).get("enabled", False):
-        message = f"Episode {episode} Frame {frame_number}\n\n{subtitle}"
-    else:
-        message = subtitle
-
     try:
-        subtitle_post_id = fb.post_frame(message, None, post_id)
+        subtitle_post_id = fb.post_frame(subtitle, None, post_id)
         if subtitle_post_id:
             print("├── Subtitle has been posted", flush=True)
             sleep(2)
