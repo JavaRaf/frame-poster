@@ -20,16 +20,16 @@ facebook = FacebookAPI(api_version="v21.0")
 
 def main():
 
-    CONFIGS          = load_configs()
-    IN_PROGRESS      = CONFIGS.get("in_progress", {})
-    POSTING          = CONFIGS.get("posting", {})
-    EPISODES         = CONFIGS.get("episodes", {})
-    GITHUB           = CONFIGS.get("github", {})
+    CONFIGS                  = load_configs()
+    IN_PROGRESS              = CONFIGS.get("in_progress", {})
+    POSTING                  = CONFIGS.get("posting", {})
+    EPISODES                 = CONFIGS.get("episodes", {})
+    GITHUB                   = CONFIGS.get("github", {})
 
-    SEASON           = IN_PROGRESS.get("season", 1) # current season
-    CURRENT_EPISODE  = IN_PROGRESS.get("episode", 1) # 
-    IMG_FPS          = EPISODES.get(CURRENT_EPISODE, {}).get("image_fps", 3.5) # frames per second of the image/video
-    PREV_FRAME       = IN_PROGRESS.get("frame", 0) # last frame posted
+    SEASON                   = IN_PROGRESS.get("season", 1) # current season
+    CURRENT_EPISODE          = IN_PROGRESS.get("episode", 1)
+    IMG_FPS                  = EPISODES.get(CURRENT_EPISODE, {}).get("image_fps", 3.5) # frames per second of the image/video
+    PREV_FRAME               = IN_PROGRESS.get("frame", 0) # last frame posted
     
 
 
@@ -88,6 +88,14 @@ def main():
         if not post_id:
             logger.error(f"After several attempts, it was not possible to post frame {frame_number} of episode {CURRENT_EPISODE:02d}.")
             break
+    
+        
+        repost_id = facebook.repost_frame_to_album(message, frame_path, ALBUM_ID, CONFIGS)
+        if not repost_id:
+            logger.error(
+                f"After several attempts, it was not possible to repost frame {frame_number} of episode {CURRENT_EPISODE:02d} to album.",
+                exc_info=True
+            )
 
         # usar o id de resposta do post pra postar as legendas no comentarios
         post_subtitles(post_id, frame_number, CURRENT_EPISODE, subtitles, CONFIGS)
@@ -95,7 +103,9 @@ def main():
         post_random_crop(post_id, frame_path, CONFIGS)
 
 
-        # savar o log do post no arquivo log.txt
+        
+
+        # salva o id do post em um formato https://facebook.com/{id} criando um link direto para o post
         facebook.save_fb_log(post_id, frame_number, CURRENT_EPISODE)
 
         print(f"{'-' * 50}\n\n") # makes visualization better in CI/CD environments

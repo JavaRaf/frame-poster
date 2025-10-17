@@ -99,6 +99,15 @@ class FacebookAPI:
 
 
     def save_fb_log(self, post_id: str, frame: int, episode: int) -> None:
+        """
+        Saves the post ID in a format https://facebook.com/{id} creating a direct link to the post
+        Args:
+            post_id (str): The ID of the post
+            frame (int): The frame number
+            episode (int): The episode number
+        Returns:
+            None
+        """
         try:
             with FB_LOG_PATH.open("a", encoding="utf-8") as file:
                 file.write(f"frame {frame}, episode {episode} - https://facebook.com/{post_id}\n")
@@ -108,6 +117,14 @@ class FacebookAPI:
 
 
     def update_bio(self, message: str) -> bool:
+        """
+        Updates the Facebook bio with the provided message.
+        The message can be formatted with placeholders.
+        Args:
+            message (str): The message to update the bio with
+        Returns:
+            bool: True if the bio was updated successfully, False otherwise
+        """
         endpoint = f"{self.base_url}/me"
         params = {"access_token": self.access_token, "about": message}
 
@@ -120,3 +137,33 @@ class FacebookAPI:
         except Exception as e:
             logger.error(f"Failed to update bio: {e}", exc_info=True)
             return False
+
+
+
+    def repost_frame_to_album(self, message: str = "", frame_path: Path = None, album_id: str = None, configs: dict = None) -> str | None:
+        """
+        Repost a frame to an album.
+        Returns the post ID if successful, otherwise returns None.
+        """
+
+        reposting_to_album = configs.get("posting", {}).get("reposting_in_album", False)
+
+        if not reposting_to_album:
+            return None
+        
+        if not album_id:
+            logger.error("reposting to album is enabled but album ID is not provided", exc_info=True)
+            return None
+
+        endpoint = f"{self.base_url}/{album_id}/photos"
+        params = {"access_token": self.access_token}
+        files = {"source": frame_path}
+        try:
+            print(
+            f"├── Reposting frame to album {album_id}...",
+            flush=True,
+            )
+            return self.post_frame(message, frame_path, album_id)
+        except RetryError:
+            logger.error("Failed to repost frame to album after multiple attempts", exc_info=True)
+            return None

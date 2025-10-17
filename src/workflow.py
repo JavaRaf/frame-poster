@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 
 from src.logger import get_logger
 
@@ -7,16 +7,16 @@ logger = get_logger(__name__)
 
 def get_workflow_execution_interval() -> str:
     """
-    Obtém o intervalo de execução do workflow do arquivo YAML.
+    Gets the workflow execution interval from the workflow file.
 
     Returns:
-        str: Intervalo em horas formatado com dois dígitos
+        str: Interval in hours, formatted as a two-digit string
     """
     try:
-        workflow_files = os.listdir(".github/workflows")
+        workflow_files = Path(".github/workflows").iterdir()
         for workflow_file in workflow_files:
-            if workflow_file.endswith(".yml") or workflow_file.endswith(".yaml"):
-                with open(f".github/workflows/{workflow_file}", "r") as file:
+            if workflow_file.suffix in [".yml", ".yaml"]:
+                with workflow_file.open("r", encoding="utf-8") as file:
                     for line in file:
                         if line.strip().startswith("- cron:"):
                             cron_expression = line.split("cron:")[1].strip().strip('"')
@@ -24,7 +24,6 @@ def get_workflow_execution_interval() -> str:
                             if len(parts) == 5 and parts[1].startswith("*/"):
                                 execution_interval = int(parts[1].replace("*/", ""))
                                 return f"{execution_interval}"
-        return "0"
     except Exception as e:
-        logger.error(f"Erro ao ler intervalo de execução: {e}", exc_info=True)
+        logger.error(f"Error while getting workflow execution interval: {e}", exc_info=True)
         return "0"

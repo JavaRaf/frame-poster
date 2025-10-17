@@ -3,9 +3,9 @@ github:
   repo: frames                              # The name of the repo where the episodes which the frames are stored
   branch: main                              # The branch of the repo where the episodes which the frames are stored
   # Example: 
-  # javaRafa/
-  # └── frames/
-  #     └── 01/
+  # javaRafa/                               # username
+  # └── frames/                             # repo name
+  #     └── 01/                             # episode folder name (name of the episode folder) (ex: 01, 02, 03, etc.)
   #         ├── frame_0001.jpg
   #         ├── frame_0002.jpg
   #         └── frame_0003.jpg
@@ -22,7 +22,7 @@ episodes:
     title:           # title for the episode (optional)
     image_fps: 3.5   # frames per second of the image/video (necessary to know when to stop posting)
     max_frames: 15   # maximum frames in the episode (exigid to know when to stop posting)
-    album_id:        # album id for repost frames in a facebook album (optional)
+    album_id: 703927706019990      # album id for repost frames in a facebook album (optional)       
   2:
     title:           # title for the episode (optional)
     image_fps: 3.5   # frames per second of the image/video (necessary to know when to stop posting)
@@ -58,9 +58,10 @@ episodes:
 
 
 posting:
-  fph: 1                                  # Frames posted per cicle (format: integer)                            
+  fph: 5                                  # Frames posted per cicle (format: integer)                            
   posting_interval: 2                      # Interval between posts in minutes (recomended: 2 or more)(format: integer)
   posting_subtitles: true                  # If true, the subtitles will be posted on comments (format: boolean)
+  reposting_in_album: true                  # If true, the frame will be reposted in an album (format: boolean)
 
   random_crop:                             # Random crop settings
     enabled: true                          # If true, the image will be cropped randomly and posted on comments (format: boolean)
@@ -85,7 +86,7 @@ posting:
 #   {timestamp} The timestamp of the frame
 #   {subtitles} The subtitles of the frame
 #   {episode_title} The title of the episode
-#   {execution_interval}  : Interval between execution (in hours) (default: 2 hours) (format: integer)
+#   {execution_interval} The interval between execution (default: 2 hours) (alterable in the workflow file)
 post_msg: |
   Season {season_number}, Episode {episode_number}, Frame {frame_number} out of {max_frames}
   timestamp: {timestamp}
