@@ -140,6 +140,10 @@ def get_subtitle_for_frame(frame_number: int, episode_number: int, image_fps: (i
     subtitles_root_folder = Path("subtitles")
     episode_subtitles_folder = subtitles_root_folder / f"{episode_number:02d}"
 
+    if not episode_subtitles_folder.exists() or not episode_subtitles_folder.is_dir():
+        logger.error(f"Episode subtitles folder '{episode_subtitles_folder}' not found.")
+        return None
+
     subtitle_files = [subtitle_file for subtitle_file in episode_subtitles_folder.iterdir() if subtitle_file.is_file()]
     if not subtitle_files:
         logger.error(f"No subtitle files found in folder '{episode_subtitles_folder}'.")
