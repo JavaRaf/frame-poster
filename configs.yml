@@ -60,7 +60,7 @@ episodes:
 
 
 posting:
-  fph: 15                                    # Frames posted per cicle (format: integer)                            
+  fph: 10                                    # Frames posted per cicle (format: integer)                            
   posting_interval: 2                       # Interval between posts in minutes (recomended: 2 or more)(format: integer)
   posting_subtitles: true                   # If true, the subtitles will be posted on comments (format: boolean)
   reposting_in_album: true                  # If true, the frame will be reposted in an album (format: boolean)
