@@ -110,3 +110,4 @@ subtitles | get_subtitle_for_frame | line 144 | ERROR | 2025-10-18 20:39:22,110 
 subtitles | get_subtitle_for_frame | line 144 | ERROR | 2025-10-18 20:41:35,141 | Episode subtitles folder 'subtitles/02' not found.
 subtitles | get_subtitle_for_frame | line 144 | ERROR | 2025-10-18 20:43:49,512 | Episode subtitles folder 'subtitles/02' not found.
 subtitles | get_subtitle_for_frame | line 144 | ERROR | 2025-10-18 20:46:05,426 | Episode subtitles folder 'subtitles/02' not found.
+subtitles | get_subtitle_for_frame | line 144 | ERROR | 2025-10-18 22:14:33,366 | Episode subtitles folder 'subtitles/02' not found.
