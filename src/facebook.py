@@ -150,9 +150,12 @@ class FacebookAPI:
 
         if not reposting_to_album:
             return None
-        
+
         if not album_id:
-            logger.error("reposting to album is enabled but album ID is not provided", exc_info=True)
+            return None
+        
+        if not str(album_id).isdigit():
+            logger.error("reposting to album is enabled but album ID is not a valid integer", exc_info=True)
             return None
 
         endpoint = f"{self.base_url}/{album_id}/photos"
@@ -167,3 +170,7 @@ class FacebookAPI:
         except RetryError:
             logger.error("Failed to repost frame to album after multiple attempts", exc_info=True)
             return None
+
+        
+
+    

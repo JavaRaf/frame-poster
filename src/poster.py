@@ -13,7 +13,7 @@ from time import sleep
 from src.facebook import FacebookAPI
 from src.frame_utils import random_crop
 from src.logger import get_logger
-
+from src.load_configs import save_configs
 # Initialize services
 fb = FacebookAPI()
 logger = get_logger(__name__)
@@ -30,10 +30,10 @@ def post_frame(message: str, frame_path: Path, placeholders: dict) -> str | None
                 f"frame {placeholders.get('frame_number')} out of {placeholders.get('max_frames')} has been posted", flush=True)
             sleep(2)
         else:
-            logger.error("✖ Failed to post frame (main, post_frame)")
+            logger.error("✖ Failed to post frame")
         return post_id
     except Exception as e:
-        logger.error(f"✖ Error posting frame: {e}")
+        logger.error(f"✖ Failed to post frame: {e}")
         return None
     
 def post_subtitles(post_id: str, frame_number: int, episode_number: int, subtitle: str, configs: dict) -> str | None:
@@ -49,10 +49,10 @@ def post_subtitles(post_id: str, frame_number: int, episode_number: int, subtitl
             print("├── Subtitle has been posted", flush=True)
             sleep(2)
         else:
-            logger.error("✖ Failed to post subtitle (main, post_subtitles)")
+            logger.error("✖ Failed to post subtitle")
         return subtitle_post_id
     except Exception as e:
-        logger.error(f"✖ Error posting subtitle: {e}")
+        logger.error(f"✖ Failed to post subtitle: {e}")
         return None
 
 
@@ -69,17 +69,13 @@ def post_random_crop(post_id: str, frame_path: Path, configs: dict) -> str | Non
                 print("└── Random Crop has been posted", flush=True)
                 sleep(2)
             else:
-                logger.error("✖ Failed to post random crop (main, post_random_crop)")
+                logger.error("✖ Failed to post random crop")
             return crop_post_id
     except Exception as e:
-        logger.error(f"✖ Error posting random crop: {e}")
+        logger.error(f"✖ Failed to post random crop: {e}")
 
     return None 
 
 
 
-
-def next_episode(CONFIGS: dict):
-    """ Jump to the next episode if """
-    pass
 

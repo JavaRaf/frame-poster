@@ -1,14 +1,13 @@
 import os
 import time
 
-from dotenv import load_dotenv
 
 from src.facebook import FacebookAPI
 from src.frame_utils import frame_to_timestamp, get_frame, timestamp_to_frame
 from src.load_configs import load_configs, save_configs
 from src.logger import get_logger
 from src.message import format_message
-from src.poster import next_episode, post_frame, post_random_crop, post_subtitles
+from src.poster import post_frame, post_random_crop, post_subtitles
 from src.subtitles import get_subtitle_for_frame
 from src.workflow import get_workflow_execution_interval
 
@@ -26,40 +25,59 @@ def main():
     EPISODES                 = CONFIGS.get("episodes", {})
     GITHUB                   = CONFIGS.get("github", {})
 
+
+
     SEASON                   = IN_PROGRESS.get("season", 1) # current season
     CURRENT_EPISODE          = IN_PROGRESS.get("episode", 1)
-    IMG_FPS                  = EPISODES.get(CURRENT_EPISODE, {}).get("image_fps", 3.5) # frames per second of the image/video
     PREV_FRAME               = IN_PROGRESS.get("frame", 0) # last frame posted
-    
+    CURRENT_EPISODE_ATTRS    = EPISODES.get(CURRENT_EPISODE, {}) # attributes of the current episode
+
+    # validate if the current episode is configured and not empty
+    if not CURRENT_EPISODE_ATTRS:
+        logger.error(f"Current episode ({CURRENT_EPISODE}) is not configured or empty")
+        return
+
+    IMG_FPS                  = CURRENT_EPISODE_ATTRS.get("image_fps", 3.5) # frames per second of the image/video (necessary to know when to stop posting)
+    ALBUM_ID                 = CURRENT_EPISODE_ATTRS.get("album_id", None)
+    EPISODE_TITLE            = CURRENT_EPISODE_ATTRS.get("title", None)
+    MAX_FRAMES               = CURRENT_EPISODE_ATTRS.get("max_frames", 0) # total frames in the episode (necessary to know when to stop posting)
+
+    FPH                      = POSTING.get("fph", 15)  # frames per hour (necessary to know when to stop posting)
+    LAST_FRAME               = PREV_FRAME + FPH  # last frame to post
 
 
-    FPH                      = POSTING.get("fph", 15)  
-    POSTING_INTERVAL         = POSTING.get("posting_interval", 2) # interval between posts in minutes (recomended: 2 or more) 
- 
-    LAST_FRAME               = PREV_FRAME + FPH  
-    MAX_FRAMES               = EPISODES.get(CURRENT_EPISODE, {}).get("max_frames", 0) # total frames in the episode
-
-    ALBUM_ID                 = EPISODES.get(CURRENT_EPISODE, {}).get("album_id", None)
-    EPISODE_TITLE            = EPISODES.get(CURRENT_EPISODE, {}).get("title", None)
     POST_MSG                 = CONFIGS.get("post_msg", "")
     BIO_MSG                  = CONFIGS.get("bio_msg", "")   
     EXECUTION_INTERVAL       = get_workflow_execution_interval()
+    POSTING_INTERVAL         = POSTING.get("posting_interval", 2) # interval between posts in minutes (recomended: 2 or more) 
 
 
+
+    # placeholders for the message
     placeholders = {
         "season_number": SEASON,
         "episode_number": CURRENT_EPISODE,
         "episode_title": EPISODE_TITLE,
         "max_frames": MAX_FRAMES,
         "img_fps": IMG_FPS,
+        "fph": FPH,
         "execution_interval": EXECUTION_INTERVAL,
+        "posting_interval": POSTING_INTERVAL,
     }
 
     
     for frame_number in range(PREV_FRAME + 1, LAST_FRAME + 1):
         # se o frame for maior que o total de frames no episodio, pula para o proximo episodio
         if frame_number > MAX_FRAMES: 
-            next_episode(CONFIGS)
+            logger.info(f"Episode {CURRENT_EPISODE} completed. Moving to next episode.", exc_info=True)
+            CURRENT_EPISODE += 1
+            
+            
+            # update configs with new episode and reset frame
+            IN_PROGRESS["episode"]  = CURRENT_EPISODE
+            IN_PROGRESS["frame"]    = 0
+            CONFIGS["in_progress"]  = IN_PROGRESS
+            save_configs(CONFIGS)
             break
 
         # baixar o frame
@@ -88,14 +106,17 @@ def main():
         if not post_id:
             logger.error(f"After several attempts, it was not possible to post frame {frame_number} of episode {CURRENT_EPISODE:02d}.")
             break
+
+        
+        # update progress after each successful post
+        IN_PROGRESS["episode"]  = CURRENT_EPISODE
+        IN_PROGRESS["frame"]    = frame_number
+        CONFIGS["in_progress"]  = IN_PROGRESS
+        save_configs(CONFIGS)
     
         
-        repost_id = facebook.repost_frame_to_album(message, frame_path, ALBUM_ID, CONFIGS)
-        if not repost_id:
-            logger.error(
-                f"After several attempts, it was not possible to repost frame {frame_number} of episode {CURRENT_EPISODE:02d} to album.",
-                exc_info=True
-            )
+        facebook.repost_frame_to_album(message, frame_path, ALBUM_ID, CONFIGS)
+        
 
         # usar o id de resposta do post pra postar as legendas no comentarios
         post_subtitles(post_id, frame_number, CURRENT_EPISODE, subtitles, CONFIGS)
@@ -109,11 +130,7 @@ def main():
         facebook.save_fb_log(post_id, frame_number, CURRENT_EPISODE)
 
         print(f"{'-' * 50}\n\n") # makes visualization better in CI/CD environments
-
-
-        
-
-
+        time.sleep(POSTING_INTERVAL * 60) # wait for the next posting interval
 
 
 
@@ -121,23 +138,17 @@ def main():
     BIOGRAPHY_MESSAGE = format_message(BIO_MSG, placeholders)
     if not facebook.update_bio(BIOGRAPHY_MESSAGE):
         logger.error("Failed to update bio")
-        return
     
-    
-
 
     
 
 
 
+    
+    
 
 
-
-
-
-
-
-
+    
 
 
 

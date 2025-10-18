@@ -13,9 +13,11 @@ github:
 
 # progress
 in_progress:
-  season: 1  # start from 1
-  episode: 1 # start from 1
-  frame: 11  # start from 0
+  season: 1
+  episode: 1
+  frame: 0
+
+
 
 episodes:
   1:
@@ -58,15 +60,15 @@ episodes:
 
 
 posting:
-  fph: 5                                  # Frames posted per cicle (format: integer)                            
-  posting_interval: 2                      # Interval between posts in minutes (recomended: 2 or more)(format: integer)
-  posting_subtitles: true                  # If true, the subtitles will be posted on comments (format: boolean)
+  fph: 15                                    # Frames posted per cicle (format: integer)                            
+  posting_interval: 2                       # Interval between posts in minutes (recomended: 2 or more)(format: integer)
+  posting_subtitles: true                   # If true, the subtitles will be posted on comments (format: boolean)
   reposting_in_album: true                  # If true, the frame will be reposted in an album (format: boolean)
 
-  random_crop:                             # Random crop settings
-    enabled: true                          # If true, the image will be cropped randomly and posted on comments (format: boolean)
-    min_x: 200                             # Minimum crop width (format: integer)
-    min_y: 600                             # Minimum crop height (format: integer)
+  random_crop:                             # Random crop settings (optional)
+    enabled: true                          # If true, the image will be cropped randomly and posted on comments (default: true) (format: boolean)
+    min_x: 200                             # Minimum crop width (default: 200) (format: integer)
+    min_y: 600                             # Minimum crop height (default: 600) (format: integer)
 
 
 
@@ -82,15 +84,17 @@ posting:
 #   {frame_number} The frame number
 #   {max_frames} The maximum frames in the episode
 #   {img_fps} The frames per second of the image/video
+#   {fph} The frames per hour
 
 #   {timestamp} The timestamp of the frame
 #   {subtitles} The subtitles of the frame
 #   {episode_title} The title of the episode
+#   {posting_interval} The interval between posts in minutes (default: 2) (alterable in the configs.yml file)
 #   {execution_interval} The interval between execution (default: 2 hours) (alterable in the workflow file)
 post_msg: |
   Season {season_number}, Episode {episode_number}, Frame {frame_number} out of {max_frames}
   timestamp: {timestamp}
 
 bio_msg: |
-  {img_fps} frames para cada segundo de video. Total de {max_frames} frames.
+  Posting {fph} frames every {execution_interval} hours
 

@@ -9,6 +9,7 @@ yaml: YAML = YAML()
 yaml.preserve_quotes = True  # Preserves quotes in YAML values
 yaml.indent(mapping=2, sequence=4, offset=2)  # Sets indentation for mappings and sequences
 yaml.default_flow_style = False  # Uses block style for YAML
+yaml.width = 4096  # Prevents line wrapping
 
 logger = get_logger(__name__)
 
