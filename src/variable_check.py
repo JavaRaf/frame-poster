@@ -50,6 +50,10 @@ def check_fb_token() -> None:
     # Remove whitespace and newlines from token to prevent API errors
     fb_token = fb_token.strip()
     
+    # Remove FB_TOKEN= prefix if present (common issue in CI/CD environments)
+    if fb_token.startswith("FB_TOKEN="):
+        fb_token = fb_token[8:]  # Remove "FB_TOKEN=" prefix
+    
     # Debug information for troubleshooting
     print(f"Token length: {len(fb_token)}")
     print(f"Token starts with: {repr(fb_token[:20])}")

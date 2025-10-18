@@ -40,7 +40,13 @@ class FacebookAPI:
 
         self.base_url = f"https://graph.facebook.com/{api_version}"
         # Remove whitespace and newlines from token to prevent API errors
-        self.access_token = os.getenv("FB_TOKEN", None).strip() if os.getenv("FB_TOKEN") else None
+        token = os.getenv("FB_TOKEN", None)
+        if token:
+            token = token.strip()
+            # Remove FB_TOKEN= prefix if present (common issue in CI/CD environments)
+            if token.startswith("FB_TOKEN="):
+                token = token[8:]  # Remove "FB_TOKEN=" prefix
+        self.access_token = token
         self.client = httpx.Client(base_url=self.base_url, timeout=httpx.Timeout(30, connect=10))
 
 
