@@ -3,3 +3,4 @@ python-dotenv==1.1.1
 langdetect==1.0.9
 tenacity==9.1.2
 httpx==0.28.1
+Pillow==11.3.0
