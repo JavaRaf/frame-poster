@@ -77,9 +77,7 @@ jobs:
       - name: Commit changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          file_pattern: |
-            logs/*
-            configs.yml     
+          file_pattern: "logs/* configs.yml"     
           commit_message: "Update"
           commit_user_name: "GitHub Actions"
           commit_user_email: "actions@github.com"
