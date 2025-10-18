@@ -39,7 +39,8 @@ class FacebookAPI:
             raise ValueError("FB_TOKEN not defined")
 
         self.base_url = f"https://graph.facebook.com/{api_version}"
-        self.access_token = os.getenv("FB_TOKEN", None)
+        # Remove whitespace and newlines from token to prevent API errors
+        self.access_token = os.getenv("FB_TOKEN", None).strip() if os.getenv("FB_TOKEN") else None
         self.client = httpx.Client(base_url=self.base_url, timeout=httpx.Timeout(30, connect=10))
 
 

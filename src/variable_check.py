@@ -47,6 +47,9 @@ def check_fb_token() -> None:
         create_table_row("FB_TOKEN", format_error("Token não encontrado"))
         return
 
+    # Remove whitespace and newlines from token to prevent API errors
+    fb_token = fb_token.strip()
+
     try:
         response = httpx.get(
             "https://graph.facebook.com/v21.0/me",
