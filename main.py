@@ -1,6 +1,4 @@
-import os
 import time
-
 
 from src.facebook import FacebookAPI
 from src.frame_utils import frame_to_timestamp, get_frame, timestamp_to_frame
