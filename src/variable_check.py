@@ -49,6 +49,13 @@ def check_fb_token() -> None:
 
     # Remove whitespace and newlines from token to prevent API errors
     fb_token = fb_token.strip()
+    
+    # Debug information for troubleshooting
+    print(f"Token length: {len(fb_token)}")
+    print(f"Token starts with: {repr(fb_token[:20])}")
+    print(f"Token ends with: {repr(fb_token[-20:])}")
+    print(f"Token contains newlines: {'\\n' in fb_token}")
+    print(f"Token contains carriage returns: {'\\r' in fb_token}")
 
     try:
         response = httpx.get(
@@ -63,7 +70,9 @@ def check_fb_token() -> None:
         create_table_row("FB_TOKEN", format_success(f"Token válido - {fb_page_name}"))
 
     except httpx.HTTPStatusError as e:
-        logger.error(f"Erro HTTP: {e}", exc_info=True)
+        logger.error(f"Erro HTTP: {e.response.status_code}")
+        logger.error(f"Response text: {e.response.text}")
+        logger.error(f"Request URL: {e.request.url}")
         create_table_row("FB_TOKEN", format_error(f"Erro HTTP: {e.response.status_code}"))
     except Exception as e:
         logger.error(f"Erro inesperado: {e}", exc_info=True)
