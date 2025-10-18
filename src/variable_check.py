@@ -49,7 +49,7 @@ def check_fb_token() -> None:
 
     try:
         response = httpx.get(
-            "https://graph.facebook.com/me",
+            "https://graph.facebook.com/v21.0/me",
             params={"access_token": fb_token},
             timeout=15,
         )
