@@ -112,3 +112,4 @@ subtitles | get_subtitle_for_frame | line 144 | ERROR | 2025-10-18 20:43:49,512 
 subtitles | get_subtitle_for_frame | line 144 | ERROR | 2025-10-18 20:46:05,426 | Episode subtitles folder 'subtitles/02' not found.
 subtitles | get_subtitle_for_frame | line 144 | ERROR | 2025-10-18 22:14:33,366 | Episode subtitles folder 'subtitles/02' not found.
 main | main | line 35 | ERROR | 2025-10-19 01:24:19,054 | Current episode (3) is not configured or empty
+main | main | line 35 | ERROR | 2025-10-19 03:13:42,772 | Current episode (3) is not configured or empty
