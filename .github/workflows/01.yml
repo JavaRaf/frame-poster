@@ -68,7 +68,7 @@ jobs:
       # So roda o main.py se o workflow não estiver rodando
       - name: Main
         run: |
-          if [[ "$IS_RUNNING" != "true" ]]; then 
+          if [[ "$IS_RUNNING" == "false" ]]; then 
             python main.py
           fi
           
