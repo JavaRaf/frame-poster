@@ -31,23 +31,87 @@ episodes:
     max_frames: 15   # maximum frames in the episode (exigid to know when to stop posting)
     album_id:        # album id for repost frames in a facebook album (optional)
   3:
+    title:           # title for the episode (optional)
+    image_fps: 3.5   # frames per second of the image/video (necessary to know when to stop posting)
+    max_frames: 15   # maximum frames in the episode (exigid to know when to stop posting)
+    album_id:        # album id for repost frames in a facebook album (optional)
   4:
+    title:           # title for the episode (optional)
+    image_fps: 3.5   # frames per second of the image/video (necessary to know when to stop posting)
+    max_frames: 15   # maximum frames in the episode (exigid to know when to stop posting)
+    album_id:        # album id for repost frames in a facebook album (optional)
   5:
+    title:           # title for the episode (optional)
+    image_fps: 3.5   # frames per second of the image/video (necessary to know when to stop posting)
+    max_frames: 15   # maximum frames in the episode (exigid to know when to stop posting)
+    album_id:        # album id for repost frames in a facebook album (optional)
   6:
+    title:           # title for the episode (optional)
+    image_fps: 3.5   # frames per second of the image/video (necessary to know when to stop posting)
+    max_frames: 15   # maximum frames in the episode (exigid to know when to stop posting)
+    album_id:        # album id for repost frames in a facebook album (optional)
   7:
   8:
+    title:           # title for the episode (optional)
+    image_fps: 3.5   # frames per second of the image/video (necessary to know when to stop posting)
+    max_frames: 15   # maximum frames in the episode (exigid to know when to stop posting)
+    album_id:        # album id for repost frames in a facebook album (optional)
   9:
   10:
+    title:           # title for the episode (optional)
+    image_fps: 3.5   # frames per second of the image/video (necessary to know when to stop posting)
+    max_frames: 15   # maximum frames in the episode (exigid to know when to stop posting)
+    album_id:        # album id for repost frames in a facebook album (optional)
   11:
+    title:           # title for the episode (optional)
+    image_fps: 3.5   # frames per second of the image/video (necessary to know when to stop posting)
+    max_frames: 15   # maximum frames in the episode (exigid to know when to stop posting)
+    album_id:        # album id for repost frames in a facebook album (optional)
   12:
+    title:           # title for the episode (optional)
+    image_fps: 3.5   # frames per second of the image/video (necessary to know when to stop posting)
+    max_frames: 15   # maximum frames in the episode (exigid to know when to stop posting)
+    album_id:        # album id for repost frames in a facebook album (optional)
   13:
+    title:           # title for the episode (optional)
+    image_fps: 3.5   # frames per second of the image/video (necessary to know when to stop posting)
+    max_frames: 15   # maximum frames in the episode (exigid to know when to stop posting)
+    album_id:        # album id for repost frames in a facebook album (optional)
   14:
+    title:           # title for the episode (optional)
+    image_fps: 3.5   # frames per second of the image/video (necessary to know when to stop posting)
+    max_frames: 15   # maximum frames in the episode (exigid to know when to stop posting)
+    album_id:        # album id for repost frames in a facebook album (optional)
   15:
+    title:           # title for the episode (optional)
+    image_fps: 3.5   # frames per second of the image/video (necessary to know when to stop posting)
+    max_frames: 15   # maximum frames in the episode (exigid to know when to stop posting)
+    album_id:        # album id for repost frames in a facebook album (optional)
   16:
+    title:           # title for the episode (optional)
+    image_fps: 3.5   # frames per second of the image/video (necessary to know when to stop posting)
+    max_frames: 15   # maximum frames in the episode (exigid to know when to stop posting)
+    album_id:        # album id for repost frames in a facebook album (optional)
   17:
+    title:           # title for the episode (optional)
+    image_fps: 3.5   # frames per second of the image/video (necessary to know when to stop posting)
+    max_frames: 15   # maximum frames in the episode (exigid to know when to stop posting)
+    album_id:        # album id for repost frames in a facebook album (optional)
   18:
+    title:           # title for the episode (optional)
+    image_fps: 3.5   # frames per second of the image/video (necessary to know when to stop posting)
+    max_frames: 15   # maximum frames in the episode (exigid to know when to stop posting)
+    album_id:        # album id for repost frames in a facebook album (optional)
   19:
+    title:           # title for the episode (optional)
+    image_fps: 3.5   # frames per second of the image/video (necessary to know when to stop posting)
+    max_frames: 15   # maximum frames in the episode (exigid to know when to stop posting)
+    album_id:        # album id for repost frames in a facebook album (optional)
   20:
+    title:           # title for the episode (optional)
+    image_fps: 3.5   # frames per second of the image/video (necessary to know when to stop posting)
+    max_frames: 15   # maximum frames in the episode (exigid to know when to stop posting)
+    album_id:        # album id for repost frames in a facebook album (optional)
   21:
   22:
   23:
@@ -60,7 +124,7 @@ episodes:
 
 
 posting:
-  fph: 14                                    # Frames posted per cicle (format: integer)                            
+  fph: 15                                    # Frames posted per cicle (format: integer)                            
   posting_interval: 2                       # Interval between posts in minutes (recomended: 2 or more)(format: integer)
   posting_subtitles: true                   # If true, the subtitles will be posted on comments (format: boolean)
   reposting_in_album: true                  # If true, the frame will be reposted in an album (format: boolean)
