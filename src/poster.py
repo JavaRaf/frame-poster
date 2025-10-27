@@ -31,10 +31,10 @@ def post_frame(message: str, frame_path: Path, placeholders: dict) -> str | None
                 f"frame {placeholders.get('frame_number')} out of {placeholders.get('max_frames')} has been posted", flush=True)
             sleep(2)
         else:
-            logger.error("✖ Failed to post frame")
+            logger.error("Failed to post frame")
         return post_id
     except Exception as e:
-        logger.error(f"✖ Failed to post frame: {e}")
+        logger.error(f"Failed to post frame")
         return None
     
 def post_subtitles(post_id: str, frame_number: int, episode_number: int, subtitle: str, configs: dict) -> str | None:
@@ -50,10 +50,10 @@ def post_subtitles(post_id: str, frame_number: int, episode_number: int, subtitl
             print("├── Subtitle has been posted", flush=True)
             sleep(2)
         else:
-            logger.error("✖ Failed to post subtitle")
+            logger.error("Failed to post subtitle")
         return subtitle_post_id
     except Exception as e:
-        logger.error(f"✖ Failed to post subtitle: {e}")
+        logger.error(f"Failed to post subtitle")
         return None
 
 
@@ -70,10 +70,10 @@ def post_random_crop(post_id: str, frame_path: Path, configs: dict) -> str | Non
                 print("└── Random Crop has been posted", flush=True)
                 sleep(2)
             else:
-                logger.error("✖ Failed to post random crop")
+                logger.error("Failed to post random crop")
             return crop_post_id
     except Exception as e:
-        logger.error(f"✖ Failed to post random crop: {e}")
+        logger.error(f"Failed to post random crop")
 
     return None 
 
