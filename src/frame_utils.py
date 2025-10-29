@@ -45,7 +45,7 @@ def timestamp_to_frame(timestamp: str, fps: (int, float) = 3.5) -> int | None:
         return None
 
 
-def timestamp_to_seconds(time_str: str) -> float | None:
+def timestamp_to_seconds(time_str: str, format: str = "ass") -> float | None:
     """
     Converts a timestamp (H:MM:SS.CC) to total seconds (float).
     Example: "0:01:02.50" → 1 minute, 2.5 seconds → 62.5 seconds.
@@ -56,21 +56,42 @@ def timestamp_to_seconds(time_str: str) -> float | None:
     Returns:
         float: Total seconds. Or None if error occurs.
     """
-    try:
-        h, m, s = time_str.split(":")
-        s, cc = s.split(".")
-        cc = cc.ljust(2, "0")  # ensure two digits
-        total_seconds = (
-            int(h) * 3600
-            + int(m) * 60
-            + int(s)
-            + int(cc) / 100
-        )
-        return total_seconds
-    except Exception as error:
-        logger.error(f"Error while converting timestamp '{time_str}' to seconds: {error}", exc_info=True)
-        return None
+    if format == "ass":
 
+        try:
+            h, m, s = time_str.split(":")
+            s, cc = s.split(".")
+            cc = cc.ljust(2, "0")  # ensure two digits
+            total_seconds = (
+                int(h) * 3600
+                + int(m) * 60
+                + int(s)
+                + int(cc) / 100
+            )
+            return total_seconds
+        except Exception as error:
+            logger.error(f"Error while converting timestamp '{time_str}' to seconds: {error}", exc_info=True)
+            return None
+    
+    elif format == "srt":
+
+        try:
+            hours, minutes, rest = time_str.split(":")
+            seconds, millis = rest.split(",")
+            total_seconds = (
+                int(hours) * 3600
+                + int(minutes) * 60
+                + int(seconds)
+                + int(millis) / 1000.0
+            )
+            return total_seconds
+        except Exception as error:
+            logger.error(f"Error while converting timestamp '{time_str}' to seconds: {error}", exc_info=True)
+            return None
+
+    else:
+        logger.error(f"Invalid format: {format}", exc_info=True)
+        return None
 
 
 def frame_to_timestamp(current_frame: int, img_fps: (int | float)) -> str | None:

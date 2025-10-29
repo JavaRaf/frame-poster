@@ -97,8 +97,100 @@ def parse_ass_file(file_path: Path) -> dict:
         "subtitles": subtitles_data
     }
 
+@lru_cache(maxsize=32)
 def parse_srt_file(file_path: Path) -> dict:
-    pass
+    """
+    Reads and parses an .srt subtitle file into a normalized structure.
+
+    The .srt format is composed of blocks:
+      1) numeric index
+      2) time range line: "HH:MM:SS,mmm --> HH:MM:SS,mmm"
+      3) one or more text lines
+      4) blank line
+
+    Returns a dict with metadata and a list of items containing Start/End in seconds.
+    """
+
+    with file_path.open("r", encoding="utf-8") as f:
+        lines = [line.rstrip("\n") for line in f]
+
+    time_line_regex = re.compile(r"^(\d{2}:\d{2}:\d{2},\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2},\d{3})$")
+
+    subtitles_data: list[dict] = []
+    collected_text_lines: list[str] = []
+    language_name = "Unknown"
+
+    i = 0
+    while i < len(lines):
+        # Skip empty lines
+        if lines[i].strip() == "":
+            i += 1
+            continue
+
+        # Optional numeric index line
+        if lines[i].strip().isdigit():
+            i += 1
+            if i >= len(lines):
+                break
+
+        # Time line must be present now
+        match = time_line_regex.match(lines[i])
+        if not match:
+            # Not a valid block; advance to next line
+            i += 1
+            continue
+
+        start_ts, end_ts = match.groups()
+        i += 1
+
+        # Collect one or more text lines until blank line or EOF
+        text_lines: list[str] = []
+        while i < len(lines) and lines[i].strip() != "":
+            text_lines.append(lines[i])
+            i += 1
+
+        # Prepare entry
+        text = remove_tags(" ".join(text_lines).strip())
+        try:
+            start_seconds = timestamp_to_seconds(start_ts, format="srt")
+            end_seconds = timestamp_to_seconds(end_ts, format="srt")
+        except Exception as error:
+            logger.error(f"Error parsing SRT timestamps '{start_ts}' -> '{end_ts}': {error}", exc_info=True)
+            i += 1
+            continue
+
+        subtitles_data.append({
+            "Start": start_seconds,
+            "End": end_seconds,
+            "Text": text,
+
+            # these are not used for srt subtitles
+            "Style": None,
+            "Actor": None,
+            "MarginL": None,
+            "MarginR": None,
+            "MarginV": None,
+            "Effect": None,
+        })
+
+        collected_text_lines.extend(text_lines)
+
+        # Move past the blank line separator if present
+        if i < len(lines) and lines[i].strip() == "":
+            i += 1
+
+    # Language detection from collected text
+    try:
+        language_name = LANGUAGE_CODES.get(detect(" ".join(collected_text_lines)), "Unknown")
+    except Exception:
+        language_name = "Unknown"
+
+    return {
+        "file_name": file_path.name,
+        "language": language_name,
+        "subtitles": subtitles_data,
+    }
+
 
 def __ass_format(frame_number: int, img_fps: float, subtitles_data: dict) -> str | None:
     """
@@ -111,14 +203,29 @@ def __ass_format(frame_number: int, img_fps: float, subtitles_data: dict) -> str
             style = (sub.get("Style") or "").lower()
             actor = (sub.get("Actor") or "").lower()
             text = sub.get("Text", "")
+            lang = subtitles_data.get("language", "")
 
             if style.startswith("sign") or actor.startswith("sign"):
                 text = f"【 {text} 】"
             elif "lyric" in style or "song" in style or "lyric" in actor or "song" in actor:
                 text = f"♪ {text} ♪\n"
 
-            return f"[{subtitles_data.get('language', '')}]\n{text}"
+            return f"[{lang}]\n{text}" if text else None
 
+    return None
+
+def __srt_format(frame_number: int, img_fps: float, subtitles_data: dict) -> str | None:
+    """Returns the active SRT subtitle text for the current frame.
+
+    SRT entries contain only timing and text; we simply prefix with language
+    and return the text for the active time window if present.
+    """
+    current_time = frame_number / img_fps
+    lang = subtitles_data.get("language", "")
+    for sub in subtitles_data.get("subtitles", []):
+        if sub["Start"] <= current_time <= sub["End"]:
+            text = sub.get("Text", "")
+            return f"[{lang}]\n{text}" if text else None
     return None
 
 def get_subtitle_for_frame(frame_number: int, episode_number: int, image_fps: (int | float)) -> str | None:
@@ -156,7 +263,8 @@ def get_subtitle_for_frame(frame_number: int, episode_number: int, image_fps: (i
                 ass_subtitles_data = parse_ass_file(subtitle_file)
                 formatted_message = __ass_format(frame_number, image_fps, ass_subtitles_data)
             case ".srt":
-                formatted_message = None
+                srt_subtitles_data = parse_srt_file(subtitle_file)
+                formatted_message = __srt_format(frame_number, image_fps, srt_subtitles_data)
             case _:
                 formatted_message = None
 
