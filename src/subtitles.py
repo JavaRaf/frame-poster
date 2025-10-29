@@ -35,6 +35,8 @@ LANGUAGE_CODES = {
 }
 
 
+
+
 def remove_tags(message: str) -> str:
     """Remove ASS/SSA tags and control codes from a subtitle string."""
     if not message or not isinstance(message, str):
@@ -198,16 +200,27 @@ def __ass_format(frame_number: int, img_fps: float, subtitles_data: dict) -> str
     """
     time = frame_number / img_fps # frame_number in seconds
 
+    # regex patterns for signs
+    SIGN_EXPRESSION = re.compile(
+        r"sign|signs",
+        re.IGNORECASE,
+    )
+    # regex patterns for music
+    EXPRESSION_MUSIC = re.compile(
+        r"\blyric(s)?\b|\bsong(s)?\b|\bopening\b|\bending\b|\bop\b|\bed\b",
+        re.IGNORECASE,
+    )
+
     for sub in subtitles_data.get("subtitles", []):
         if sub["Start"] <= time <= sub["End"]:
-            style = (sub.get("Style") or "").lower()
-            actor = (sub.get("Actor") or "").lower()
+            style = (sub.get("Style") or "")
+            actor = (sub.get("Actor") or "")
             text = sub.get("Text", "")
             lang = subtitles_data.get("language", "")
 
-            if style.startswith("sign") or actor.startswith("sign"):
+            if SIGN_EXPRESSION.search(style) or SIGN_EXPRESSION.search(actor):
                 text = f"【 {text} 】"
-            elif "lyric" in style or "song" in style or "lyric" in actor or "song" in actor:
+            elif EXPRESSION_MUSIC.search(style) or EXPRESSION_MUSIC.search(actor):
                 text = f"♪ {text} ♪\n"
 
             return f"[{lang}]\n{text}" if text else None
