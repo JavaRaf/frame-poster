@@ -67,9 +67,9 @@ def parse_ass_file(file_path: Path) -> dict:
     dialogues_text = " ".join(remove_tags(line.split(",", 9)[9]) for line in dialogues)
     try:
         # Detect language using langdetect and map to human-readable name
-        language_name = LANGUAGE_CODES.get(detect(dialogues_text), "Unknown")
+        language_name = LANGUAGE_CODES.get(detect(dialogues_text), "Unknown_language")
     except Exception:
-        language_name = "Unknown"
+        language_name = "Unknown_language"
 
     subtitles_data = []
     for line in dialogues:
@@ -116,11 +116,13 @@ def parse_srt_file(file_path: Path) -> dict:
     with file_path.open("r", encoding="utf-8") as f:
         lines = [line.rstrip("\n") for line in f]
 
-    time_line_regex = re.compile(r"^(\d{2}:\d{2}:\d{2},\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2},\d{3})$")
+    time_line_regex = re.compile(
+        r"^\s*(\d{2}:\d{2}:\d{2},\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2},\d{3}).*$"
+    )
 
     subtitles_data: list[dict] = []
     collected_text_lines: list[str] = []
-    language_name = "Unknown"
+    language_name = "Unknown_language"
 
     i = 0
     while i < len(lines):
@@ -183,9 +185,9 @@ def parse_srt_file(file_path: Path) -> dict:
 
     # Language detection from collected text
     try:
-        language_name = LANGUAGE_CODES.get(detect(" ".join(collected_text_lines)), "Unknown")
+        language_name = LANGUAGE_CODES.get(detect(" ".join(collected_text_lines)), "Unknown_language")
     except Exception:
-        language_name = "Unknown"
+        language_name = "Unknown_language"
 
     return {
         "file_name": file_path.name,
@@ -198,18 +200,18 @@ def __ass_format(frame_number: int, img_fps: float, subtitles_data: dict) -> str
     """
     Returns the formatted text of the active subtitle for the current frame.
     """
-    time = frame_number / img_fps # frame_number in seconds
-
     # regex patterns for signs
     SIGN_EXPRESSION = re.compile(
         r"sign|signs",
         re.IGNORECASE,
     )
     # regex patterns for music
-    EXPRESSION_MUSIC = re.compile(
+    MUSIC_EXPRESSION = re.compile(
         r"\blyric(s)?\b|\bsong(s)?\b|\bopening\b|\bending\b|\bop\b|\bed\b",
         re.IGNORECASE,
     )
+
+    time = frame_number / img_fps # frame_number in seconds
 
     for sub in subtitles_data.get("subtitles", []):
         if sub["Start"] <= time <= sub["End"]:
@@ -220,10 +222,10 @@ def __ass_format(frame_number: int, img_fps: float, subtitles_data: dict) -> str
 
             if SIGN_EXPRESSION.search(style) or SIGN_EXPRESSION.search(actor):
                 text = f"【 {text} 】"
-            elif EXPRESSION_MUSIC.search(style) or EXPRESSION_MUSIC.search(actor):
+            elif MUSIC_EXPRESSION.search(style) or MUSIC_EXPRESSION.search(actor):
                 text = f"♪ {text} ♪\n"
 
-            return f"[{lang}]\n{text}" if text else None
+            return f"[{lang}]\n{text}"
 
     return None
 
