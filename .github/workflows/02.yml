@@ -23,7 +23,9 @@ jobs:
               with:
                 python-version: "3.13"
 
-            # cache de dependencias
+            # -------------------------------------------------------------
+            # CACHE DEPENDENCIES (Python)
+            # -------------------------------------------------------------
             - name: Cache dependencies
               uses: actions/cache@v4.2.0
               with:
@@ -33,12 +35,17 @@ jobs:
                   ${{ runner.os }}-pip-
                   ${{ runner.os }}-
 
-            # instala dependencias
+            # -------------------------------------------------------------
+            # INSTALL PYTHON DEPENDENCIES
+            # -------------------------------------------------------------
             - name: Install dependencies
               run: |
                 python -m pip install --upgrade pip 
                 pip install -r requirements.txt
                 
+            # -------------------------------------------------------------
+            # RUN FB TOKEN CHECK
+            # -------------------------------------------------------------
             - name: Run FB Token Check
               run: |
                 python -m src.variable_check
