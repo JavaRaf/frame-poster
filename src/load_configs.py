@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from ruamel.yaml import YAML
@@ -24,27 +25,45 @@ def load_configs() -> dict:
     Returns:
         dict: The configuration data loaded from the YAML file, or an empty dict if loading fails.
     """
-    # Checks if the configuration file exists before attempting to load
     if not CONFIGS_PATH.exists():
-        logger.error(f"Config file not found: {CONFIGS_PATH}", exc_info=True)
+        # Missing file is not a caught exception, so no exc_info here.
+        logger.error("Config file not found at %s", CONFIGS_PATH)
         return {}
 
     try:
-        # Opens and loads the YAML configuration file
         with CONFIGS_PATH.open("r", encoding="utf-8") as file:
             configs = yaml.load(file)
-            # Ensures that a dictionary is always returned
             if configs is None:
-                logger.warning("Config file is empty. Returning empty dict.")
+                logger.warning("Config file %s is empty; returning empty dict", CONFIGS_PATH.name)
                 return {}
             return configs
-    except Exception as error:
-        # Logs any exception that occurs during loading
-        logger.error(f"Error while loading configs: {error}", exc_info=True)
+    except (OSError, ValueError) as error:
+        logger.error("Failed to load %s: %s: %s", CONFIGS_PATH.name, type(error).__name__, error, exc_info=True)
         return {}
 
 
 
-def save_configs(configs: dict):
-    with CONFIGS_PATH.open("w", encoding="utf-8") as file:
-        yaml.dump(configs, file)
+def save_configs(configs: dict) -> None:
+    """
+    Atomically writes the configuration dict back to ``configs.yml``.
+
+    Writing to a sibling temp file and then renaming avoids leaving the
+    config in a half-written state if the process is killed mid-write
+    (a real risk in CI/CD where the job can be cancelled at any moment).
+    """
+    tmp_path = CONFIGS_PATH.with_suffix(CONFIGS_PATH.suffix + ".tmp")
+    try:
+        with tmp_path.open("w", encoding="utf-8") as file:
+            yaml.dump(configs, file)
+        # ``os.replace`` is atomic on both POSIX and Windows when source and
+        # destination live on the same filesystem, which is the case here.
+        os.replace(tmp_path, CONFIGS_PATH)
+    except OSError as error:
+        logger.error("Failed to save %s: %s: %s", CONFIGS_PATH.name, type(error).__name__, error, exc_info=True)
+        # Best-effort cleanup of the partial file so it doesn't linger.
+        if tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
+        raise

@@ -74,13 +74,16 @@ def check_fb_token() -> None:
         create_table_row("FB_TOKEN", format_success(f"Token válido - {fb_page_name}"))
 
     except httpx.HTTPStatusError as e:
-        logger.error(f"Erro HTTP: {e.response.status_code}")
-        logger.error(f"Response text: {e.response.text}")
-        logger.error(f"Request URL: {e.request.url}")
+        # Note: intentionally not logging e.request.url here because it
+        # embeds the raw access_token in the query string.
+        logger.error(
+            "FB_TOKEN check failed: HTTP %s - %s",
+            e.response.status_code, e.response.text[:500],
+        )
         create_table_row("FB_TOKEN", format_error(f"Erro HTTP: {e.response.status_code}"))
-    except Exception as e:
-        logger.error(f"Erro inesperado: {e}", exc_info=True)
-        create_table_row("FB_TOKEN", format_error("Erro inesperado"))
+    except httpx.RequestError as e:
+        logger.error("FB_TOKEN check failed: %s: %s", type(e).__name__, e, exc_info=True)
+        create_table_row("FB_TOKEN", format_error("Erro de rede"))
 
 
 

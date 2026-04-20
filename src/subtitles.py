@@ -2,9 +2,7 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
-import httpx
 from langdetect import detect
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.frame_utils import timestamp_to_seconds
 from src.logger import get_logger
@@ -88,9 +86,9 @@ def parse_ass_file(file_path: Path) -> dict:
                 "Effect": parts[8],
                 "Text": remove_tags(parts[9]),
             })
-        except Exception as error:
-            # Log error if parsing a line fails, but continue processing the rest
-            logger.error(f"Error while parsing line {line}: {error}", exc_info=True)
+        except (IndexError, ValueError) as error:
+            # Log the failure but keep parsing the rest of the file.
+            logger.error("Failed to parse ASS dialogue line %r in %s: %s", line.strip(), file_path.name, error)
             continue
 
     return {
@@ -158,8 +156,11 @@ def parse_srt_file(file_path: Path) -> dict:
         try:
             start_seconds = timestamp_to_seconds(start_ts, format="srt")
             end_seconds = timestamp_to_seconds(end_ts, format="srt")
-        except Exception as error:
-            logger.error(f"Error parsing SRT timestamps '{start_ts}' -> '{end_ts}': {error}", exc_info=True)
+        except (ValueError, AttributeError) as error:
+            logger.error(
+                "Failed to parse SRT timestamp range %r -> %r in %s: %s",
+                start_ts, end_ts, file_path.name, error,
+            )
             i += 1
             continue
 
@@ -243,7 +244,7 @@ def __srt_format(frame_number: int, img_fps: float, subtitles_data: dict) -> str
             return f"[{lang}]\n{text}" if text else None
     return None
 
-def get_subtitle_for_frame(frame_number: int, episode_number: int, image_fps: (int | float)) -> str | None:
+def get_subtitle_for_frame(frame_number: int, episode_number: int, image_fps: int | float) -> str | None:
     """
     Returns formatted subtitle messages for a given frame and episode.
 
@@ -256,19 +257,24 @@ def get_subtitle_for_frame(frame_number: int, episode_number: int, image_fps: (i
     """
     
     if not isinstance(frame_number, int) or not isinstance(episode_number, int):
-        logger.error("Error, frame_number and episode_number must be integers.")
+        logger.error(
+            "get_subtitle_for_frame: frame_number and episode_number must be int, "
+            "got %s and %s",
+            type(frame_number).__name__, type(episode_number).__name__,
+        )
         return None
 
     subtitles_root_folder = Path("subtitles")
     episode_subtitles_folder = subtitles_root_folder / f"{episode_number:02d}"
 
     if not episode_subtitles_folder.exists() or not episode_subtitles_folder.is_dir():
-        logger.error(f"Episode subtitles folder '{episode_subtitles_folder}' not found.")
+        # Warning (not error) because some episodes legitimately ship without subs.
+        logger.warning("No subtitles folder for episode %02d (expected at %s)", episode_number, episode_subtitles_folder)
         return None
 
-    subtitle_files = [subtitle_file for subtitle_file in episode_subtitles_folder.iterdir() if subtitle_file.is_file()]
+    subtitle_files = [f for f in episode_subtitles_folder.iterdir() if f.is_file()]
     if not subtitle_files:
-        logger.error(f"No subtitle files found in folder '{episode_subtitles_folder}'.")
+        logger.warning("Subtitles folder %s is empty", episode_subtitles_folder)
         return None
 
     formatted_messages = ""

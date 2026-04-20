@@ -14,8 +14,8 @@ github:
 # progress
 in_progress:
   season: 1
-  episode: 7
-  frame: 0
+  episode: 1
+  frame: 1
 
 
 
@@ -131,8 +131,8 @@ posting:
 
   random_crop:                             # Random crop settings (optional)
     enabled: true                          # If true, the image will be cropped randomly and posted on comments (default: true) (format: boolean)
-    min_x: 200                             # Minimum crop width (default: 200) (format: integer)
-    min_y: 600                             # Minimum crop height (default: 600) (format: integer)
+    min_size: 200                          # Minimum side length of the square crop in pixels (default: 200) (format: integer)
+    max_size: 600                          # Maximum side length of the square crop in pixels (default: 600) (format: integer)
 
 
 

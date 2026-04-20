@@ -1,16 +1,16 @@
 import time
 
-from src.facebook import FacebookAPI
 from src.frame_utils import frame_to_timestamp, get_frame, timestamp_to_frame
 from src.load_configs import load_configs, save_configs
 from src.logger import get_logger
 from src.message import format_message
-from src.poster import post_frame, post_random_crop, post_subtitles
+# Reuse the single FacebookAPI instance created in poster.py instead of
+# spinning up a second client/token load just for repost/update_bio/save_log.
+from src.poster import fb, post_frame, post_random_crop, post_subtitles
 from src.subtitles import get_subtitle_for_frame
 from src.workflow import get_workflow_execution_interval
 
 logger = get_logger(__name__)
-facebook = FacebookAPI(api_version="v21.0")
 
 
 
@@ -32,7 +32,11 @@ def main():
 
     # validate if the current episode is configured and not empty
     if not CURRENT_EPISODE_ATTRS:
-        logger.error(f"Current episode ({CURRENT_EPISODE}) is not configured or empty")
+        logger.error(
+            "Episode %s has no entry in configs.yml (episodes: section). "
+            "Check in_progress.episode and the episodes mapping.",
+            CURRENT_EPISODE,
+        )
         return
 
     IMG_FPS                  = CURRENT_EPISODE_ATTRS.get("image_fps", 3.5) # frames per second of the image/video (necessary to know when to stop posting)
@@ -66,8 +70,10 @@ def main():
     
     for frame_number in range(PREV_FRAME + 1, LAST_FRAME + 1):
         # se o frame for maior que o total de frames no episodio, pula para o proximo episodio
-        if frame_number > MAX_FRAMES: 
-            logger.info(f"Episode {CURRENT_EPISODE} completed. Moving to next episode.", exc_info=True)
+        if frame_number > MAX_FRAMES:
+            # exc_info removed: we're not inside an except block, so attaching
+            # a traceback would just log "NoneType: None" noise.
+            logger.info("Episode %s completed; advancing to episode %s", CURRENT_EPISODE, CURRENT_EPISODE + 1)
             CURRENT_EPISODE += 1
             
             
@@ -81,9 +87,11 @@ def main():
         # baixar o frame
         frame_path = get_frame(frame_number, CURRENT_EPISODE, GITHUB)
         if not frame_path:
-            logger.error(f"Error while downloading frame {frame_number} from episode {CURRENT_EPISODE:02d}.")
+            # get_frame already logged the HTTP/network cause; this line just
+            # signals the main loop gave up on this cycle.
+            logger.error("Aborting cycle: could not download frame %s of episode %02d", frame_number, CURRENT_EPISODE)
             break
-        
+
         # pegar o subtitle do frame
         subtitles = get_subtitle_for_frame(frame_number, CURRENT_EPISODE, IMG_FPS)
 
@@ -96,13 +104,17 @@ def main():
         message = format_message(POST_MSG, placeholders)
 
         if not message:
-            logger.error(f"Error while formatting message for frame {frame_number} from episode {CURRENT_EPISODE:02d}.")
+            logger.error(
+                "Aborting cycle: empty message after formatting for frame %s of episode %02d",
+                frame_number, CURRENT_EPISODE,
+            )
             break
 
         # postar o frame com a mensagem (placeholders apenas para formatar a mensagem no terminal)
         post_id = post_frame(message, frame_path, placeholders)
         if not post_id:
-            logger.error(f"After several attempts, it was not possible to post frame {frame_number} of episode {CURRENT_EPISODE:02d}.")
+            # post_frame already logged the Graph API response, so just note the loop is stopping.
+            logger.error("Aborting cycle: frame %s of episode %02d was not posted", frame_number, CURRENT_EPISODE)
             break
 
         
@@ -113,7 +125,7 @@ def main():
         save_configs(CONFIGS)
     
         
-        facebook.repost_frame_to_album(message, frame_path, ALBUM_ID, CONFIGS)
+        fb.repost_frame_to_album(message, frame_path, ALBUM_ID, CONFIGS)
         
 
         # usar o id de resposta do post pra postar as legendas no comentarios
@@ -125,7 +137,7 @@ def main():
         
 
         # salva o id do post em um formato https://facebook.com/{id} criando um link direto para o post
-        facebook.save_fb_log(post_id, frame_number, CURRENT_EPISODE)
+        fb.save_fb_log(post_id, frame_number, CURRENT_EPISODE)
 
         print(f"{'-' * 50}\n\n") # makes visualization better in CI/CD environments
         time.sleep(POSTING_INTERVAL * 60) # wait for the next posting interval
@@ -134,8 +146,8 @@ def main():
 
     # atualizar a biografia do facebook com informações relevantes
     BIOGRAPHY_MESSAGE = format_message(BIO_MSG, placeholders)
-    if not facebook.update_bio(BIOGRAPHY_MESSAGE):
-        logger.error("Failed to update bio")
+    # update_bio already logs the HTTP status + response body, so no extra log here.
+    fb.update_bio(BIOGRAPHY_MESSAGE)
     
 
     
