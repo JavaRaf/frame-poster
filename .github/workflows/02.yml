@@ -5,6 +5,10 @@ on:
     paths:
       - "subtitles/**"
       - "configs.yml"
+  
+  # Schedule to run on the first day of every month at midnight to check if the FB token is still valid
+  schedule:
+    - cron: "0 0 1 * *"
 
 
 jobs:
