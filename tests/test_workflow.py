@@ -26,6 +26,27 @@ def test_get_workflow_execution_interval_reads_01_workflow_hours() -> None:
 
         assert interval == "3 hours"
 
+def test_get_workflow_execution_interval_reads_01_workflow_hours() -> None:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        workflow_dir = Path(tmp_dir) / ".github" / "workflows"
+        workflow_dir.mkdir(parents=True)
+        (workflow_dir / "01.yml").write_text(
+            textwrap.dedent(
+                """
+                name: test
+                on:
+                  schedule:
+                    - cron: "0 */7 * * *"
+                """
+            ).strip()
+            + "\n",
+            encoding="utf-8",
+        )
+
+        interval = get_workflow_execution_interval(workflow_dir / "01.yml")
+
+        assert interval == "7 hours"
+
 
 def test_get_workflow_execution_interval_supports_daily_schedule() -> None:
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -47,3 +68,26 @@ def test_get_workflow_execution_interval_supports_daily_schedule() -> None:
         interval = get_workflow_execution_interval(workflow_dir / "01.yml")
 
         assert interval == "1 day"
+
+def test_get_workflow_execution_interval_returns_0_on_error() -> None:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        workflow_dir = Path(tmp_dir) / ".github" / "workflows"
+        workflow_dir.mkdir(parents=True)
+        (workflow_dir / "01.yml").write_text(
+            textwrap.dedent(
+                """
+                name: test
+                on:
+                  schedule:
+                    - cron: "invalid cron expression"
+                """
+            ).strip()
+            + "\n",
+            encoding="utf-8",
+        )
+
+        interval = get_workflow_execution_interval(workflow_dir / "01.yml")
+
+        assert interval == "0"
+
+
