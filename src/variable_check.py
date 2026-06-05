@@ -2,6 +2,7 @@ import os
 
 import httpx
 
+from src.facebook import sanitize_for_logging
 from src.logger import get_logger
 
 logger = get_logger(__name__)
@@ -64,7 +65,7 @@ def check_fb_token() -> None:
     try:
         response = httpx.get(
             "https://graph.facebook.com/v21.0/me",
-            params={"access_token": fb_token},
+            headers={"Authorization": f"Bearer {fb_token}"},
             timeout=15,
         )
         response.raise_for_status()
@@ -82,7 +83,7 @@ def check_fb_token() -> None:
         )
         create_table_row("FB_TOKEN", format_error(f"Erro HTTP: {e.response.status_code}"))
     except httpx.RequestError as e:
-        logger.error("FB_TOKEN check failed: %s: %s", type(e).__name__, e, exc_info=True)
+        logger.error("FB_TOKEN check failed: %s: %s", type(e).__name__, sanitize_for_logging(e))
         create_table_row("FB_TOKEN", format_error("Erro de rede"))
 
 

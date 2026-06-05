@@ -1,8 +1,12 @@
 import os
+from copy import deepcopy
 from pathlib import Path
 
 from ruamel.yaml import YAML
+from ruamel.yaml.comments import CommentedMap
+from pydantic import ValidationError
 
+from src.config_models import AppConfig
 from src.logger import get_logger
 
 # Creating YAML instance and configuring it for consistent YAML parsing and writing
@@ -16,6 +20,20 @@ logger = get_logger(__name__)
 
 # Defining the path to the configuration file
 CONFIGS_PATH = Path.cwd() / "configs.yml"
+
+
+def _merge_yaml(base: CommentedMap | dict, updates: dict) -> CommentedMap | dict:
+    """Recursively merge plain dict updates into an existing YAML mapping."""
+    if isinstance(base, CommentedMap) and isinstance(updates, dict):
+        result = deepcopy(base)
+        for key, value in updates.items():
+            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+                result[key] = _merge_yaml(result[key], value)
+            else:
+                result[key] = deepcopy(value)
+        return result
+
+    return deepcopy(updates)
 
 
 def load_configs() -> dict:
@@ -42,19 +60,47 @@ def load_configs() -> dict:
         return {}
 
 
+def load_and_validate() -> AppConfig:
+    """
+    Load ``configs.yml`` and validate it through Pydantic.
+
+    Returns:
+        AppConfig: The validated configuration object.
+
+    Raises:
+        SystemExit: If the file is missing, empty, or fails validation.
+    """
+    raw = load_configs()
+    if not raw:
+        logger.critical("Cannot proceed without a valid configs.yml — exiting.")
+        raise SystemExit(1)
+
+    try:
+        return AppConfig.model_validate(raw)
+    except ValidationError as exc:
+        logger.critical("configs.yml validation failed:\n%s", exc)
+        raise SystemExit(1) from exc
+
+
 
 def save_configs(configs: dict) -> None:
     """
     Atomically writes the configuration dict back to ``configs.yml``.
 
-    Writing to a sibling temp file and then renaming avoids leaving the
-    config in a half-written state if the process is killed mid-write
-    (a real risk in CI/CD where the job can be cancelled at any moment).
+    It starts from the already-loaded YAML structure so existing comments and
+    formatting are preserved instead of being replaced by a fresh plain-dict
+    dump.
     """
     tmp_path = CONFIGS_PATH.with_suffix(CONFIGS_PATH.suffix + ".tmp")
     try:
+        original = load_configs()
+        if not isinstance(original, CommentedMap):
+            original = CommentedMap(original)
+
+        updated = _merge_yaml(original, configs)
+
         with tmp_path.open("w", encoding="utf-8") as file:
-            yaml.dump(configs, file)
+            yaml.dump(updated, file)
         # ``os.replace`` is atomic on both POSIX and Windows when source and
         # destination live on the same filesystem, which is the case here.
         os.replace(tmp_path, CONFIGS_PATH)

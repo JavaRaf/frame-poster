@@ -14,5 +14,7 @@ test.py
 pyproject.toml
 images/*/
 temp/*/
+temp/*/
 logs/*/
 temp/*/
+logs/*/

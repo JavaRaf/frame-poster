@@ -13,9 +13,15 @@ logger = get_logger(__name__)
 
 client = httpx.Client(
     timeout=httpx.Timeout(30, connect=10),
+    follow_redirects=True,
     headers={
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-        'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36'})
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/135.0.0.0 Safari/537.36"
+        )
+    },
+)
 
 
 def timestamp_to_frame(timestamp: str, fps: int | float = 3.5) -> int | None:
@@ -158,8 +164,16 @@ def random_crop(frame_path: Path, configs: dict) -> tuple[Path, str] | None:
         # pixels, not coordinates. The legacy ``min_x``/``min_y`` names are
         # still read as a fallback so older configs.yml files keep working.
         random_crop_cfg = configs.get("posting", {}).get("random_crop", {})
-        min_size: int = random_crop_cfg.get("min_size", random_crop_cfg.get("min_x", 200))
-        max_size: int = random_crop_cfg.get("max_size", random_crop_cfg.get("min_y", 600))
+        min_size = int(random_crop_cfg.get("min_size", random_crop_cfg.get("min_x", 200)))
+        max_size = int(random_crop_cfg.get("max_size", random_crop_cfg.get("min_y", 600)))
+
+        if min_size <= 0 or max_size <= 0:
+            logger.error("random_crop: crop sizes must be positive, got min=%s max=%s", min_size, max_size)
+            return None, None
+
+        if min_size > max_size:
+            logger.error("random_crop: min_size (%s) cannot be greater than max_size (%s)", min_size, max_size)
+            return None, None
 
         crop_width = crop_height = random.randint(min_size, max_size)
 
@@ -182,22 +196,20 @@ def random_crop(frame_path: Path, configs: dict) -> tuple[Path, str] | None:
                 (crop_x, crop_y, crop_x + crop_width, crop_y + crop_height)
             )
 
-            # Save the cropped image
-            cropped_path = (
-                Path.cwd()
-                / "temp"
-                / f"cropped_frame{frame_path.suffix}"
-            )
-            cropped_path.parent.mkdir(exist_ok=True)
-
+            # Save the cropped image inside the project temp folder so it is
+            # visible in the workspace and easy to inspect after the run.
+            temp_dir = Path.cwd() / "temp"
+            temp_dir.mkdir(exist_ok=True)
+            cropped_path = temp_dir / f"{frame_path.stem}_crop{frame_path.suffix}"
             cropped_img.save(cropped_path)
+            logger.info("Random crop saved to %s", cropped_path)
             message = (
                 f"Random Crop. [{crop_width}x{crop_height} ~ X: {crop_x}, Y: {crop_y}]"
             )
 
             return cropped_path, message
 
-    except (OSError, ValueError) as e:
+    except (OSError, ValueError, Image.DecompressionBombError) as e:
         logger.error("Failed to crop %s: %s: %s", frame_path.name, type(e).__name__, e, exc_info=True)
         return None, None
 
@@ -240,12 +252,13 @@ def get_frame(frame_number: int, episode_number: int, github_expects: dict) -> P
             proxy_url = f"https://images.weserv.nl/?url={frame_url}"
             response = client.get(proxy_url)
 
-        if response.status_code != 200:
+        if response.status_code >= 400:
             logger.error(
                 "Failed to download %s: HTTP %s - %s",
-                frame_label, response.status_code, response.text[:200],
+                frame_label,
+                response.status_code,
+                response.text[:200],
             )
-            # Let tenacity retry on rate limit; other statuses are not transient.
             if response.status_code == 429:
                 response.raise_for_status()
             return None

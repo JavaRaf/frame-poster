@@ -10,7 +10,7 @@ from pathlib import Path
 from time import sleep
 
 # Third party imports
-from src.facebook import FacebookAPI
+from src.facebook import FacebookAPI, sanitize_for_logging
 from src.frame_utils import random_crop
 from src.logger import get_logger
 
@@ -39,7 +39,7 @@ def post_frame(message: str, frame_path: Path, placeholders: dict) -> str | None
     except Exception as e:
         # Keep the exception type+message so the log is actionable
         # (e.g. HTTPStatusError vs ConnectError is very different).
-        logger.error("Failed to post %s: %s: %s", frame_label, type(e).__name__, e, exc_info=True)
+        logger.error("Failed to post %s: %s: %s", frame_label, type(e).__name__, sanitize_for_logging(e))
         return None
 
 
@@ -61,7 +61,7 @@ def post_subtitles(post_id: str, frame_number: int, episode_number: int, subtitl
         logger.error("Facebook API returned no post id for %s", context)
         return None
     except Exception as e:
-        logger.error("Failed to post %s: %s: %s", context, type(e).__name__, e, exc_info=True)
+        logger.error("Failed to post %s: %s: %s", context, type(e).__name__, sanitize_for_logging(e))
         return None
 
 
@@ -86,7 +86,9 @@ def post_random_crop(post_id: str, frame_path: Path, configs: dict) -> str | Non
     except Exception as e:
         logger.error(
             "Failed to post random crop of %s: %s: %s",
-            frame_path.name, type(e).__name__, e, exc_info=True,
+            frame_path.name,
+            type(e).__name__,
+            sanitize_for_logging(e),
         )
         return None
 

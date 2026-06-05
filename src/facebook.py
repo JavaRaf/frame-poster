@@ -1,4 +1,5 @@
 import os
+import re
 from pathlib import Path
 
 import httpx
@@ -16,6 +17,12 @@ from src.logger import get_logger
 logger = get_logger(__name__)
 FB_LOG_PATH = Path.cwd() / "logs" / "fb_log.txt"
 FB_LOG_PATH.touch(exist_ok=True)
+TOKEN_RE = re.compile(r"(?i)(access_token(?:%3D|=))([^&\s]+)")
+
+
+def sanitize_for_logging(value: object) -> str:
+    """Redact Facebook access tokens from exception strings and URLs."""
+    return TOKEN_RE.sub(r"\1[REDACTED]", "" if value is None else str(value))
 
 # Loads environment variables from the .env file. Existing OS-level variables
 # take precedence (useful in CI/CD where secrets come from the runner).
@@ -24,19 +31,43 @@ load_dotenv(".env")
 
 class FacebookAPI:
     def __init__(self, api_version: str = "v21.0"):
+        self.base_url = f"https://graph.facebook.com/{api_version}"
+        self.access_token = None
+        self.client = httpx.Client(base_url=self.base_url, timeout=httpx.Timeout(30, connect=10))
+
         token = os.getenv("FB_TOKEN")
         if not token:
-            # Raising surfaces the problem at startup instead of on the first
-            # request; no need to also log here because the stack trace is clear.
-            raise ValueError("FB_TOKEN is not defined in the environment")
-
-        self.base_url = f"https://graph.facebook.com/{api_version}"
+            logger.error("FB_TOKEN is not defined in the environment")
+            return
 
         # Defensive cleanup: tokens pasted from CI/CD sometimes come with a
         # stray "FB_TOKEN=" prefix or trailing whitespace/newlines.
         token = token.strip().removeprefix("FB_TOKEN=")
         self.access_token = token
-        self.client = httpx.Client(base_url=self.base_url, timeout=httpx.Timeout(30, connect=10))
+
+
+    def validate_token(self) -> bool:
+        """Return True only when the configured Facebook token is valid."""
+        token = self.access_token or os.getenv("FB_TOKEN", "").strip().removeprefix("FB_TOKEN=")
+        if not token:
+            logger.error("FB_TOKEN is not defined in the environment")
+            return False
+
+        try:
+            response = httpx.get(
+                f"{self.base_url}/me",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=15,
+            )
+            response.raise_for_status()
+            return True
+        except httpx.HTTPError as exc:
+            logger.error(
+                "Facebook token validation failed: %s: %s",
+                type(exc).__name__,
+                sanitize_for_logging(exc),
+            )
+            return False
 
 
     @retry(
@@ -46,7 +77,8 @@ class FacebookAPI:
         reraise=True,
     )
     def _try_post(self, endpoint: str, params: dict, files: dict = None) -> str | None:
-        response = self.client.post(endpoint, params=params, files=files)
+        headers = {"Authorization": f"Bearer {self.access_token}"}
+        response = self.client.post(endpoint, params=params, files=files, headers=headers)
 
         if response.status_code == 200:
             try:
@@ -71,10 +103,12 @@ class FacebookAPI:
             response = last_exc.response
             logger.error(
                 "Failed to post %s after retries: HTTP %s - %s",
-                context, response.status_code, response.text[:500],
+                context,
+                response.status_code,
+                response.text[:500],
             )
         else:
-            logger.error("Failed to post %s after retries: %s", context, last_exc, exc_info=True)
+            logger.error("Failed to post %s after retries: %s", context, sanitize_for_logging(last_exc))
 
     def post_frame(self, message: str = "", frame_path: Path = None, parent_id: str = None) -> str | None:
         """
@@ -86,7 +120,7 @@ class FacebookAPI:
             if parent_id
             else f"{self.base_url}/me/photos"
         )
-        params = {"access_token": self.access_token, "message": message}
+        params = {"message": message}
 
         # Describe what we're posting so log lines pinpoint the failure.
         context = (
@@ -140,10 +174,11 @@ class FacebookAPI:
             bool: True if the bio was updated successfully, False otherwise
         """
         endpoint = f"{self.base_url}/me"
-        params = {"access_token": self.access_token, "about": message}
+        params = {"about": message}
+        headers = {"Authorization": f"Bearer {self.access_token}"}
 
         try:
-            response = self.client.post(endpoint, params=params)
+            response = self.client.post(endpoint, params=params, headers=headers)
             if response.status_code == 200:
                 return True
             # Body typically contains the Graph API error message (e.g.
@@ -156,7 +191,7 @@ class FacebookAPI:
             return False
 
         except httpx.HTTPError as e:
-            logger.error("Failed to update bio: %s: %s", type(e).__name__, e, exc_info=True)
+            logger.error("Failed to update bio: %s: %s", type(e).__name__, sanitize_for_logging(e))
             return False
 
 
