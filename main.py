@@ -105,15 +105,6 @@ def main():
     
 
 
-
-    
-    
-
-
-    
-
-
-
 if __name__ == "__main__":
     print('\n' + '-' * 50 + '\n' "Starting the script" + '\n' + '-' * 50 + "\n\n",  flush=True) # makes visualization better in CI/CD environments
     main()
