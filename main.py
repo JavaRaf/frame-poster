@@ -12,31 +12,31 @@ logger = get_logger(__name__)
 
 
 
-
-def main():
+def main() -> None:
+    """Run the posting cycle for the current episode and frame range."""
     if not fb.validate_token():
         logger.error("Aborting run: Facebook token is invalid or missing.")
         return
 
     config = load_and_validate()
-    ep_cfg = config.episodes[config.in_progress.episode]
-    last_frame = config.in_progress.frame + config.posting.fph
+    episode_config = config.episodes[config.in_progress.episode]
+    last_frame_to_post = config.in_progress.frame + config.posting.fph
 
-    # ── placeholders estáticos (não mudam entre frames) ───────────
+    # Static placeholders that do not change between frames.
     static_placeholders = {
         "season_number": config.in_progress.season,
         "episode_number": config.in_progress.episode,
-        "episode_title": ep_cfg.title,
-        "max_frames": ep_cfg.max_frames,
-        "img_fps": ep_cfg.image_fps,
+        "episode_title": episode_config.title,
+        "max_frames": episode_config.max_frames,
+        "img_fps": episode_config.image_fps,
         "fph": config.posting.fph,
         "execution_interval": get_workflow_execution_interval(),
         "posting_interval": config.posting.posting_interval,
     }
 
-    for frame_number in range(config.in_progress.frame + 1, last_frame + 1):
-        # ── avançar para o próximo episódio se este acabou ──
-        if frame_number > ep_cfg.max_frames:
+    for frame_number in range(config.in_progress.frame + 1, last_frame_to_post + 1):
+        # Move to the next episode when the current one has finished.
+        if frame_number > episode_config.max_frames:
             logger.info(
                 "Episode %s completed; advancing to episode %s",
                 config.in_progress.episode,
@@ -47,7 +47,7 @@ def main():
             save_configs(config.model_dump())
             break
 
-        # ── baixar o frame ──
+        # Download the next frame image for posting.
         frame_path = get_frame(frame_number, config.in_progress.episode, config.github.model_dump())
         if not frame_path:
             logger.error(
@@ -56,15 +56,15 @@ def main():
             )
             break
 
-        # ── obter legenda ──
-        subtitles = get_subtitle_for_frame(frame_number, config.in_progress.episode, ep_cfg.image_fps)
+        # Retrieve the subtitle line for the current frame.
+        subtitle_text = get_subtitle_for_frame(frame_number, config.in_progress.episode, episode_config.image_fps)
 
-        # ── montar placeholders e formatar mensagem ──
+        # Build the dynamic placeholders and format the post message.
         placeholders = {
             **static_placeholders,
             "frame_number": frame_number,
-            "timestamp": frame_to_timestamp(frame_number, ep_cfg.image_fps),
-            "subtitles": subtitles or "",
+            "timestamp": frame_to_timestamp(frame_number, episode_config.image_fps),
+            "subtitles": subtitle_text or "",
         }
         message = format_message(config.post_msg, placeholders)
         if not message:
@@ -74,7 +74,7 @@ def main():
             )
             break
 
-        # ── postar o frame ──
+        # Publish the frame to Facebook.
         post_id = post_frame(message, frame_path, placeholders)
         if not post_id:
             logger.error(
@@ -83,21 +83,21 @@ def main():
             )
             break
 
-        # ── persistir progresso ──
+        # Save progress after a successful post.
         config.in_progress.frame = frame_number
-        raw_config = config.model_dump()
-        save_configs(raw_config)
+        current_config_snapshot = config.model_dump()
+        save_configs(current_config_snapshot)
 
-        # ── acções pós-post ──
-        fb.repost_frame_to_album(message, frame_path, ep_cfg.album_id, raw_config)
-        post_subtitles(post_id, frame_number, config.in_progress.episode, subtitles, raw_config)
-        post_random_crop(post_id, frame_path, raw_config)
+        # Run follow-up publishing actions after the main post.
+        fb.repost_frame_to_album(message, frame_path, episode_config.album_id, current_config_snapshot)
+        post_subtitles(post_id, frame_number, config.in_progress.episode, subtitle_text, current_config_snapshot)
+        post_random_crop(post_id, frame_path, current_config_snapshot)
         fb.save_fb_log(post_id, frame_number, config.in_progress.episode)
 
         print(f"{'-' * 50}\n\n")
         time.sleep(config.posting.posting_interval * 60)
 
-    # ── actualizar biografia ──
+    # Update the Facebook bio with the final formatted message.
     bio_message = format_message(config.bio_msg, static_placeholders)
     fb.update_bio(bio_message)
     
@@ -106,6 +106,6 @@ def main():
 
 
 if __name__ == "__main__":
-    print('\n' + '-' * 50 + '\n' "Starting the script" + '\n' + '-' * 50 + "\n\n",  flush=True) # makes visualization better in CI/CD environments
+    print('\n' + '-' * 50 + '\n' "Starting the script" + '\n' + '-' * 50 + "\n\n", flush=True)
     main()
-    print('\n' + '-' * 50 + '\n' "Ending the script" + '\n' + '-' * 50 +"\n\n",  flush=True) # makes visualization better in CI/CD environments
+    print('\n' + '-' * 50 + '\n' "Ending the script" + '\n' + '-' * 50 + "\n\n", flush=True)

@@ -12,40 +12,46 @@ SUMMARY_FILE = os.getenv("GITHUB_STEP_SUMMARY")
 
 
 def write_to_summary(content: str) -> None:
+    """Append a line to the GitHub Actions summary file, if available."""
     if SUMMARY_FILE:
-        with open(SUMMARY_FILE, "a") as f:
-            f.write(content + "\n")
+        with open(SUMMARY_FILE, "a") as summary_file:
+            summary_file.write(content + "\n")
 
 
-# Cabeçalho do relatório
-write_to_summary('<h1 align="center">Verificação de Variáveis</h1>')
-write_to_summary('<p align="center">Status das variáveis e tokens do sistema</p>')
+# Report header for the variable validation summary.
+write_to_summary('<h1 align="center">Variable Verification</h1>')
+write_to_summary('<p align="center">Status of environment variables and tokens</p>')
 write_to_summary('<div align="center">')
 write_to_summary("\n| Variável | Status |")
 write_to_summary("|----------|---------|")
 
 
 def format_success(text: str) -> str:
+    """Return a success badge formatted for GitHub Actions summary output."""
     return f"$\\fbox{{\\color{{#126329}}\\textsf{{✅  {text}}}}}$"  # LaTeX MathJax
 
 
 def format_error(text: str) -> str:
+    """Return an error badge formatted for GitHub Actions summary output."""
     return f"$\\fbox{{\\color{{#82061E}}\\textsf{{❌  {text}}}}}$"  # LaTeX MathJax
 
 
 def format_warning(text: str) -> str:
+    """Return a warning badge formatted for GitHub Actions summary output."""
     return f"$\\fbox{{\\color{{#FFA500}}\\textsf{{⚠️  {text}}}}}$"  # LaTeX MathJax
 
 
 def create_table_row(key: str, status: str) -> None:
+    """Append a single summary row for one environment variable."""
     write_to_summary(f"| `{key}` | {status} |")
 
 
-# Verificação do token do Facebook
+# Validate the Facebook token and report its status.
 def check_fb_token() -> None:
+    """Check whether the Facebook token is present and valid."""
     fb_token = os.getenv("FB_TOKEN")
     if not fb_token:
-        create_table_row("FB_TOKEN", format_error("Token não encontrado"))
+        create_table_row("FB_TOKEN", format_error("Token not found"))
         return
 
     # Remove whitespace and newlines from token to prevent API errors
@@ -71,8 +77,8 @@ def check_fb_token() -> None:
         response.raise_for_status()
         fb_page_name = response.json().get("name")
         
-        # Token válido - mostrar sucesso
-        create_table_row("FB_TOKEN", format_success(f"Token válido - {fb_page_name}"))
+        # Token is valid; display the page name for verification.
+        create_table_row("FB_TOKEN", format_success(f"Token is valid - {fb_page_name}"))
 
     except httpx.HTTPStatusError as e:
         # Note: intentionally not logging e.request.url here because it
@@ -81,10 +87,10 @@ def check_fb_token() -> None:
             "FB_TOKEN check failed: HTTP %s - %s",
             e.response.status_code, e.response.text[:500],
         )
-        create_table_row("FB_TOKEN", format_error(f"Erro HTTP: {e.response.status_code}"))
+        create_table_row("FB_TOKEN", format_error(f"HTTP error: {e.response.status_code}"))
     except httpx.RequestError as e:
         logger.error("FB_TOKEN check failed: %s: %s", type(e).__name__, sanitize_for_logging(e))
-        create_table_row("FB_TOKEN", format_error("Erro de rede"))
+        create_table_row("FB_TOKEN", format_error("Network error"))
 
 
 
