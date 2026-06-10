@@ -2,8 +2,9 @@ import logging
 import sys
 from pathlib import Path
 
-LOG_DIR = Path.cwd() / "logs"
-LOG_DIR.mkdir(exist_ok=True)
+from src.settings import LOG_DIR
+
+LOG_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = LOG_DIR / "app.log"
 
 # On Windows the default stdout/stderr encoding is cp1252, which blows up on

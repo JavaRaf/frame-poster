@@ -3,7 +3,6 @@ import re
 from pathlib import Path
 
 import httpx
-from dotenv import load_dotenv
 from tenacity import (
     RetryError,
     retry,
@@ -13,9 +12,10 @@ from tenacity import (
 )
 
 from src.logger import get_logger
+from src.settings import FB_LOG_PATH, FB_TOKEN_ENV_VAR
 
 logger = get_logger(__name__)
-FB_LOG_PATH = Path.cwd() / "logs" / "fb_log.txt"
+FB_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
 FB_LOG_PATH.touch(exist_ok=True)
 TOKEN_RE = re.compile(r"(?i)(access_token(?:%3D|=))([^&\s]+)")
 
@@ -24,33 +24,31 @@ def sanitize_for_logging(value: object) -> str:
     """Redact Facebook access tokens from exception strings and URLs."""
     return TOKEN_RE.sub(r"\1[REDACTED]", "" if value is None else str(value))
 
-# Loads environment variables from the .env file. Existing OS-level variables
-# take precedence (useful in CI/CD where secrets come from the runner).
-load_dotenv(".env")
-
-
 class FacebookAPI:
-    def __init__(self, api_version: str = "v21.0"):
+    def __init__(self, api_version: str = "v21.0", access_token: str | None = None):
         self.base_url = f"https://graph.facebook.com/{api_version}"
-        self.access_token = None
         self.client = httpx.Client(base_url=self.base_url, timeout=httpx.Timeout(30, connect=10))
+        self.access_token = self._normalize_token(
+            access_token
+            or os.getenv(FB_TOKEN_ENV_VAR, "")
+        )
 
-        token = os.getenv("FB_TOKEN")
+        if not self.access_token:
+            logger.error("FB_TOKEN is not defined in the environment or passed by CLI")
+
+    def _normalize_token(self, token: str | None) -> str | None:
         if not token:
-            logger.error("FB_TOKEN is not defined in the environment")
-            return
+            return None
 
-        # Defensive cleanup: tokens pasted from CI/CD sometimes come with a
-        # stray "FB_TOKEN=" prefix or trailing whitespace/newlines.
         token = token.strip().removeprefix("FB_TOKEN=")
-        self.access_token = token
+        return token if token else None
 
 
     def validate_token(self) -> bool:
         """Return True only when the configured Facebook token is valid."""
-        token = self.access_token or os.getenv("FB_TOKEN", "").strip().removeprefix("FB_TOKEN=")
+        token = self.access_token or os.getenv(FB_TOKEN_ENV_VAR, "").strip().removeprefix("FB_TOKEN=")
         if not token:
-            logger.error("FB_TOKEN is not defined in the environment")
+            logger.error("%s is not defined in the environment", FB_TOKEN_ENV_VAR)
             return False
 
         try:
@@ -173,6 +171,11 @@ class FacebookAPI:
         Returns:
             bool: True if the bio was updated successfully, False otherwise
         """
+
+        if message == "":
+            logger.info("Bio message is empty, skipping bio update.")
+            return True
+        
         endpoint = f"{self.base_url}/me"
         params = {"about": message}
         headers = {"Authorization": f"Bearer {self.access_token}"}
@@ -204,10 +207,7 @@ class FacebookAPI:
 
         reposting_to_album = configs.get("posting", {}).get("reposting_in_album", False)
 
-        if not reposting_to_album:
-            return None
-
-        if not album_id:
+        if not reposting_to_album or not album_id:
             return None
         
         if not str(album_id).isdigit():

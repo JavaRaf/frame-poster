@@ -69,10 +69,17 @@ class EpisodeConfig(BaseModel):
     album_id: Optional[Union[int, str]] = None
 
 
+class FacebookConfig(BaseModel):
+    """Represents the ``facebook:`` section of the config."""
+
+    api_version: str = "v21.0"
+
+
 class AppConfig(BaseModel):
     """Top-level validated representation of ``configs.yml``."""
 
     github: GitHubConfig
+    facebook: FacebookConfig = FacebookConfig()
     in_progress: InProgressConfig = InProgressConfig()
     episodes: dict[int, EpisodeConfig] = {}
     posting: PostingConfig = PostingConfig()

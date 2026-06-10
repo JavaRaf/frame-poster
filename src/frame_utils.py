@@ -7,6 +7,7 @@ from PIL import Image
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.logger import get_logger
+from src.settings import IMAGES_DIR, TEMP_DIR
 
 logger = get_logger(__name__)
 
@@ -196,10 +197,9 @@ def random_crop(frame_path: Path, configs: dict) -> tuple[Path, str] | None:
                 (crop_x, crop_y, crop_x + crop_width, crop_y + crop_height)
             )
 
-            # Save the cropped image inside the project temp folder so it is
-            # visible in the workspace and easy to inspect after the run.
-            temp_dir = Path.cwd() / "temp"
-            temp_dir.mkdir(exist_ok=True)
+            # Save the cropped image inside the shared temp folder.
+            temp_dir = TEMP_DIR
+            temp_dir.mkdir(parents=True, exist_ok=True)
             cropped_path = temp_dir / f"{frame_path.stem}_crop{frame_path.suffix}"
             cropped_img.save(cropped_path)
             logger.info("Random crop saved to %s", cropped_path)
@@ -263,7 +263,7 @@ def get_frame(frame_number: int, episode_number: int, github_expects: dict) -> P
                 response.raise_for_status()
             return None
 
-        image_path = Path.cwd() / "images" / f"{episode_number:02d}" / f"{frame_number:04d}.jpg"
+        image_path = IMAGES_DIR / f"{episode_number:02d}" / f"{frame_number:04d}.jpg"
         image_path.parent.mkdir(parents=True, exist_ok=True)
         with image_path.open("wb") as f:
             f.write(response.content)

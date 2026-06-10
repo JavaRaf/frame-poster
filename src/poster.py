@@ -14,11 +14,9 @@ from src.facebook import FacebookAPI, sanitize_for_logging
 from src.frame_utils import random_crop
 from src.logger import get_logger
 
-# Initialize services
-fb = FacebookAPI()
 logger = get_logger(__name__)
 
-def post_frame(message: str, frame_path: Path, placeholders: dict) -> str | None:
+def post_frame(facebook: FacebookAPI, message: str, frame_path: Path, placeholders: dict) -> str | None:
     """Post a frame and return the post ID."""
     # Small label used in log messages to pinpoint which frame/episode failed.
     frame_label = (
@@ -26,7 +24,7 @@ def post_frame(message: str, frame_path: Path, placeholders: dict) -> str | None
         f"(episode {placeholders.get('episode_number')})"
     )
     try:
-        post_id = fb.post_frame(message, frame_path)
+        post_id = facebook.post_frame(message, frame_path)
         if post_id:
             print(
                 f"├── season {placeholders.get('season_number')}, "
@@ -43,7 +41,7 @@ def post_frame(message: str, frame_path: Path, placeholders: dict) -> str | None
         return None
 
 
-def post_subtitles(post_id: str, frame_number: int, episode_number: int, subtitle: str, configs: dict) -> str | None:
+def post_subtitles(facebook: FacebookAPI, post_id: str, frame_number: int, episode_number: int, subtitle: str, configs: dict) -> str | None:
     """Post the subtitles associated with the frame."""
     if not configs.get("posting", {}).get("posting_subtitles", False):
         return None
@@ -53,7 +51,7 @@ def post_subtitles(post_id: str, frame_number: int, episode_number: int, subtitl
 
     context = f"subtitle for frame {frame_number} (episode {episode_number})"
     try:
-        subtitle_post_id = fb.post_frame(subtitle, None, post_id)
+        subtitle_post_id = facebook.post_frame(subtitle, None, post_id)
         if subtitle_post_id:
             print("├── Subtitle has been posted", flush=True)
             sleep(2)
@@ -65,7 +63,7 @@ def post_subtitles(post_id: str, frame_number: int, episode_number: int, subtitl
         return None
 
 
-def post_random_crop(post_id: str, frame_path: Path, configs: dict) -> str | None:
+def post_random_crop(facebook: FacebookAPI, post_id: str, frame_path: Path, configs: dict) -> str | None:
     """Post a random cropped frame."""
     if not configs.get("posting", {}).get("random_crop", {}).get("enabled", False):
         return None
@@ -76,7 +74,7 @@ def post_random_crop(post_id: str, frame_path: Path, configs: dict) -> str | Non
         if not (crop_path and crop_message):
             return None
 
-        crop_post_id = fb.post_frame(crop_message, crop_path, post_id)
+        crop_post_id = facebook.post_frame(crop_message, crop_path, post_id)
         if crop_post_id:
             print("└── Random Crop has been posted", flush=True)
             sleep(2)

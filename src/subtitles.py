@@ -6,6 +6,7 @@ from langdetect import detect
 
 from src.frame_utils import timestamp_to_seconds
 from src.logger import get_logger
+from src.settings import SUBTITLES_DIR
 
 logger = get_logger(__name__)
 
@@ -264,8 +265,7 @@ def get_subtitle_for_frame(frame_number: int, episode_number: int, image_fps: in
         )
         return None
 
-    subtitles_root_folder = Path("subtitles")
-    episode_subtitles_folder = subtitles_root_folder / f"{episode_number:02d}"
+    episode_subtitles_folder = SUBTITLES_DIR / f"{episode_number:02d}"
 
     if not episode_subtitles_folder.exists() or not episode_subtitles_folder.is_dir():
         # Warning (not error) because some episodes legitimately ship without subs.

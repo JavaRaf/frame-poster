@@ -8,6 +8,7 @@ from pydantic import ValidationError
 
 from src.config_models import AppConfig
 from src.logger import get_logger
+from src.settings import CONFIGS_PATH as DEFAULT_CONFIGS_PATH
 
 # Creating YAML instance and configuring it for consistent YAML parsing and writing
 yaml: YAML = YAML()
@@ -17,9 +18,6 @@ yaml.default_flow_style = False  # Uses block style for YAML
 yaml.width = 4096  # Prevents line wrapping
 
 logger = get_logger(__name__)
-
-# Defining the path to the configuration file
-CONFIGS_PATH = Path.cwd() / "configs.yml"
 
 
 def _merge_yaml(base: CommentedMap | dict, updates: dict) -> CommentedMap | dict:
@@ -36,33 +34,41 @@ def _merge_yaml(base: CommentedMap | dict, updates: dict) -> CommentedMap | dict
     return deepcopy(updates)
 
 
-def load_configs() -> dict:
+def load_configs(config_path: Path | str | None = None) -> dict:
     """
-    Loads configuration from the YAML file defined in CONFIGS_PATH.
+    Loads configuration from the YAML file defined by config_path or the default config path.
 
     Returns:
         dict: The configuration data loaded from the YAML file, or an empty dict if loading fails.
     """
-    if not CONFIGS_PATH.exists():
-        # Missing file is not a caught exception, so no exc_info here.
-        logger.error("Config file not found at %s", CONFIGS_PATH)
+    if config_path is None:
+        config_path = DEFAULT_CONFIGS_PATH
+    config_path = Path(config_path)
+    if not config_path.is_absolute():
+        config_path = DEFAULT_CONFIGS_PATH.parent / config_path
+
+    if not config_path.exists():
+        logger.error("Config file not found at %s", config_path)
         return {}
 
     try:
-        with CONFIGS_PATH.open("r", encoding="utf-8") as file:
+        with config_path.open("r", encoding="utf-8") as file:
             configs = yaml.load(file)
             if configs is None:
-                logger.warning("Config file %s is empty; returning empty dict", CONFIGS_PATH.name)
+                logger.warning("Config file %s is empty; returning empty dict", config_path.name)
                 return {}
             return configs
     except (OSError, ValueError) as error:
-        logger.error("Failed to load %s: %s: %s", CONFIGS_PATH.name, type(error).__name__, error, exc_info=True)
+        logger.error("Failed to load %s: %s: %s", config_path.name, type(error).__name__, error, exc_info=True)
         return {}
 
 
-def load_and_validate() -> AppConfig:
+def load_and_validate(config_path: Path | str | None = None) -> AppConfig:
     """
-    Load ``configs.yml`` and validate it through Pydantic.
+    Load the YAML config file and validate it through Pydantic.
+
+    Args:
+        config_path: Optional path to the YAML configuration file.
 
     Returns:
         AppConfig: The validated configuration object.
@@ -70,7 +76,7 @@ def load_and_validate() -> AppConfig:
     Raises:
         SystemExit: If the file is missing, empty, or fails validation.
     """
-    raw = load_configs()
+    raw = load_configs(config_path)
     if not raw:
         logger.critical("Cannot proceed without a valid configs.yml — exiting.")
         raise SystemExit(1)
@@ -83,17 +89,23 @@ def load_and_validate() -> AppConfig:
 
 
 
-def save_configs(configs: dict) -> None:
+def save_configs(configs: dict, config_path: Path | str | None = None) -> None:
     """
-    Atomically writes the configuration dict back to ``configs.yml``.
+    Atomically writes the configuration dict back to the configured YAML path.
 
     It starts from the already-loaded YAML structure so existing comments and
     formatting are preserved instead of being replaced by a fresh plain-dict
     dump.
     """
-    tmp_path = CONFIGS_PATH.with_suffix(CONFIGS_PATH.suffix + ".tmp")
+    if config_path is None:
+        config_path = DEFAULT_CONFIGS_PATH
+    config_path = Path(config_path)
+    if not config_path.is_absolute():
+        config_path = DEFAULT_CONFIGS_PATH.parent / config_path
+
+    tmp_path = config_path.with_suffix(config_path.suffix + ".tmp")
     try:
-        original = load_configs()
+        original = load_configs(config_path)
         if not isinstance(original, CommentedMap):
             original = CommentedMap(original)
 
@@ -101,12 +113,9 @@ def save_configs(configs: dict) -> None:
 
         with tmp_path.open("w", encoding="utf-8") as file:
             yaml.dump(updated, file)
-        # ``os.replace`` is atomic on both POSIX and Windows when source and
-        # destination live on the same filesystem, which is the case here.
-        os.replace(tmp_path, CONFIGS_PATH)
+        os.replace(tmp_path, config_path)
     except OSError as error:
-        logger.error("Failed to save %s: %s: %s", CONFIGS_PATH.name, type(error).__name__, error, exc_info=True)
-        # Best-effort cleanup of the partial file so it doesn't linger.
+        logger.error("Failed to save %s: %s: %s", config_path.name, type(error).__name__, error, exc_info=True)
         if tmp_path.exists():
             try:
                 tmp_path.unlink()

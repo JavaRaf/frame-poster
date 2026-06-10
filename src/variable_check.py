@@ -18,12 +18,7 @@ def write_to_summary(content: str) -> None:
             summary_file.write(content + "\n")
 
 
-# Report header for the variable validation summary.
-write_to_summary('<h1 align="center">Variable Verification</h1>')
-write_to_summary('<p align="center">Status of environment variables and tokens</p>')
-write_to_summary('<div align="center">')
-write_to_summary("\n| Variável | Status |")
-write_to_summary("|----------|---------|")
+# Report header for the variable validation summary is emitted when the check runs.
 
 
 def format_success(text: str) -> str:
@@ -44,6 +39,18 @@ def format_warning(text: str) -> str:
 def create_table_row(key: str, status: str) -> None:
     """Append a single summary row for one environment variable."""
     write_to_summary(f"| `{key}` | {status} |")
+
+
+def run_variable_check() -> None:
+    """Run the variable validation report and write the summary."""
+    write_to_summary('<h1 align="center">Variable Verification</h1>')
+    write_to_summary('<p align="center">Status of environment variables and tokens</p>')
+    write_to_summary('<div align="center">')
+    write_to_summary("\n| Variável | Status |")
+    write_to_summary("|----------|---------|")
+
+if __name__ == "__main__":
+    run_variable_check()
 
 
 # Validate the Facebook token and report its status.
