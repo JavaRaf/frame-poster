@@ -1,24 +1,55 @@
+import argparse
+import os
 import time
+from pathlib import Path
 
+from src.facebook import FacebookAPI
 from src.frame_utils import frame_to_timestamp, get_frame
 from src.load_configs import load_and_validate, save_configs
 from src.logger import get_logger
 from src.message import format_message
-from src.poster import fb, post_frame, post_random_crop, post_subtitles
+from src.poster import post_frame, post_random_crop, post_subtitles
+from src.settings import CONFIGS_PATH, FB_TOKEN_ENV_VAR
 from src.subtitles import get_subtitle_for_frame
 from src.workflow import get_workflow_execution_interval
 
 logger = get_logger(__name__)
 
 
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Run frame-poster with centralized config and token override."
+    )
+    parser.add_argument(
+        "--config-file",
+        default=None,
+        help="Path to the YAML config file (default: configs.yml in project root).",
+    )
+    parser.add_argument(
+        "--fb-token",
+        default=None,
+        help="Facebook access token to use for this run. Overrides FB_TOKEN environment variable.",
+    )
+    return parser.parse_args(argv)
 
-def main() -> None:
-    """Run the posting cycle for the current episode and frame range."""
-    if not fb.validate_token():
+
+def main(argv: list[str] | None = None) -> None:
+    args = parse_args(argv)
+
+    if args.fb_token:
+        os.environ[FB_TOKEN_ENV_VAR] = args.fb_token.strip()
+
+    config_path = Path(args.config_file) if args.config_file else CONFIGS_PATH
+    config = load_and_validate(config_path)
+    facebook_client = FacebookAPI(
+        api_version=config.facebook.api_version,
+        access_token=args.fb_token,
+    )
+
+    if not facebook_client.validate_token():
         logger.error("Aborting run: Facebook token is invalid or missing.")
         return
 
-    config = load_and_validate()
     episode_config = config.episodes[config.in_progress.episode]
     last_frame_to_post = config.in_progress.frame + config.posting.fph
 
@@ -44,7 +75,7 @@ def main() -> None:
             )
             config.in_progress.episode += 1
             config.in_progress.frame = 0
-            save_configs(config.model_dump())
+            save_configs(config.model_dump(), config_path)
             break
 
         # Download the next frame image for posting.
@@ -75,7 +106,7 @@ def main() -> None:
             break
 
         # Publish the frame to Facebook.
-        post_id = post_frame(message, frame_path, placeholders)
+        post_id = post_frame(facebook_client, message, frame_path, placeholders)
         if not post_id:
             logger.error(
                 "Aborting cycle: frame %s of episode %02d was not posted",
@@ -86,20 +117,22 @@ def main() -> None:
         # Save progress after a successful post.
         config.in_progress.frame = frame_number
         current_config_snapshot = config.model_dump()
-        save_configs(current_config_snapshot)
+        save_configs(current_config_snapshot, config_path)
 
         # Run follow-up publishing actions after the main post.
-        fb.repost_frame_to_album(message, frame_path, episode_config.album_id, current_config_snapshot)
-        post_subtitles(post_id, frame_number, config.in_progress.episode, subtitle_text, current_config_snapshot)
-        post_random_crop(post_id, frame_path, current_config_snapshot)
-        fb.save_fb_log(post_id, frame_number, config.in_progress.episode)
+        facebook_client.repost_frame_to_album(message, frame_path, episode_config.album_id, current_config_snapshot)
+        post_subtitles(facebook_client, post_id, frame_number, config.in_progress.episode, subtitle_text, current_config_snapshot)
+        post_random_crop(facebook_client, post_id, frame_path, current_config_snapshot)
+        facebook_client.save_fb_log(post_id, frame_number, config.in_progress.episode)
 
         print(f"{'-' * 50}\n\n")
-        time.sleep(config.posting.posting_interval * 60)
+        time.sleep(config.posting.posting_interval * 60)  # 2 * 60 = 2 minutes
 
     # Update the Facebook bio with the final formatted message.
     bio_message = format_message(config.bio_msg, static_placeholders)
-    fb.update_bio(bio_message)
+    if bio_message:
+        facebook_client.update_bio(bio_message)
+
     
 
     
