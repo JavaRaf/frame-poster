@@ -11,11 +11,17 @@ github:
   #         └── frame_0003.jpg
 
 
-# progress
+
+facebook:
+  api_version: v21.0
+
+
+
+# progress of the posting (format: integer)
 in_progress:
   season: 1
-  episode: 1
-  frame: 8
+  episode: 2
+  frame: 5
 
 
 episodes:
@@ -50,11 +56,6 @@ posting:
 
 
 
-
-
-
-
-
 # placeholders: Supported
 #   {season_number} The season number
 #   {episode_number} The episode number
@@ -74,4 +75,5 @@ post_msg: |
 
 bio_msg: |
   Posting {fph} frames every {execution_interval} hours
+
 
