@@ -1,6 +1,7 @@
 import os
 import re
 from pathlib import Path
+from functools import lru_cache
 
 import httpx
 from tenacity import (
@@ -198,6 +199,30 @@ class FacebookAPI:
             return False
 
 
+    @lru_cache(maxsize=128)
+    def album_name(self, album_id: str) -> str | None:
+        """
+        Get the name of an album.
+        Returns the album name if successful, otherwise returns None.
+        """
+
+        try:
+            endpoint = f"{self.base_url}/{album_id}"
+            params = {"fields": "name"}
+            headers = {"Authorization": f"Bearer {self.access_token}"}
+            response = self.client.get(endpoint, params=params, headers=headers)
+            if response.status_code == 200:
+                return response.json().get("name")
+            logger.error(
+                "Failed to get album name: HTTP %s - %s",
+                response.status_code, response.text[:500],
+            )
+            return None
+        except httpx.HTTPError as e:
+            logger.error("Failed to get album name: %s: %s", type(e).__name__, sanitize_for_logging(e))
+            return None
+        
+
 
     def repost_frame_to_album(self, message: str = "", frame_path: Path = None, album_id: str = None, configs: dict = None) -> str | None:
         """
@@ -218,12 +243,17 @@ class FacebookAPI:
             return None
 
         try:
-            print(f"├── Reposting frame to album {album_id}...", flush=True)
-            return self.post_frame(message, frame_path, album_id)
+            id = self.post_frame(message, frame_path, album_id)
+            if not id:
+                logger.error(f'Failed to repost frame to album {album_id}', flush=True)
+                return None
+
+            print(f'├── Frame reposted to album "{self.album_name(album_id)}" with id "{id}" ', flush=True)
+            return id
+
         except RetryError as e:
             self._log_post_failure(f"album repost to {album_id}", e)
             return None
 
-        
 
     
