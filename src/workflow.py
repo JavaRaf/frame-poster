@@ -1,53 +1,67 @@
-from cron_descriptor import get_description, FormatException
+"""
+This module provides functions to calculate the average run interval of a GitHub Actions workflow.
+"""
+
+from datetime import datetime
 from pathlib import Path
+from statistics import mean
 
-from ruamel.yaml import YAML
+import yaml
+from croniter import croniter
 
-from src.logger import get_logger
-
-logger = get_logger(__name__)
+# {'name': 'init banner', True: {'workflow_dispatch': None, 'schedule': [{'cron': '0 */3 * * *'}]}}
 
 
-def get_workflow_execution_interval(workflow_file: str | Path = ".github/workflows/01.yml") -> str | None:
+def get_cron_iterator(file_path: str = ".github/workflows/01.yml") -> croniter:
     """
-    Gets the workflow execution interval from a GitHub Actions workflow YAML file.
-    
+    Returns a croniter object representing the cron schedule.
+
     Args:
-        workflow_file: Path to the workflow YAML file. Defaults to ".github/workflows/01.yml".
-    
+        file_path: The path to the workflow file (relative to project root).
+
     Returns:
-        Human-readable interval such as "3", or None if not found/invalid.
-    
-    Example:
-        >>> get_workflow_execution_interval(".github/workflows/01.yml")
-        '3'
+        A croniter object representing the cron schedule.
     """
     try:
-        path = Path(workflow_file)
-        if not path.exists():
-            logger.warning("Workflow file not found: %s", path)
-            return None
+        if not Path(file_path).is_absolute():
+            file_path = Path(__file__).parent.parent / file_path
         
-        yaml_parser = YAML()
-        with path.open("r", encoding="utf-8") as file:
-            workflow = yaml_parser.load(file)
-        
-        # Navigate to cron expression in workflow YAML
-        cron_expression = None
-        if isinstance(workflow, dict):
-            schedule = workflow.get("on", {}).get("schedule", [])
-            if schedule and isinstance(schedule, list):
-                cron_expression = schedule[0].get("cron")
-        
-        if not cron_expression:
-            logger.warning("No cron expression found in workflow file: %s", path)
-            return None
-        
-        descriptor = get_description(cron_expression).replace("Every ", "").replace("hours", "")
-        return descriptor
-        
-    except (FormatException, Exception) as exc:
-        logger.error("Error parsing workflow or cron expression: %s", exc, exc_info=True)
-        return None
+        with Path(file_path).open("r") as f:
+            content: dict = yaml.safe_load(f)
+            return croniter(content.get(True).get("schedule")[0].get("cron"))
+    except Exception as e:
+        print(e)
 
+
+def calculate_average_run_interval(cron_iter: croniter, runs: int = 20) -> float:
+    """
+    Calculates the average run interval in seconds.
+
+    Args:
+        cron_iter: A croniter object representing the cron schedule.
+        runs: The number of runs to calculate the average interval for.
+
+    Returns:
+        The average run interval in seconds.
+    """
+    intervals = []
+
+    # Discard first run for improved accuracy
+    prev_time = cron_iter.get_next(datetime)
+
+    for _ in range(runs):
+        next_time = cron_iter.get_next(datetime)
+        interval = (next_time - prev_time).total_seconds()
+        intervals.append(interval)
+        prev_time = next_time
+
+    return mean(intervals)
+
+
+def get_workflow_interval() -> str | None:
+    """
+    Returns interval in hours.
+    """
+    cron_iter = get_cron_iterator()
+    return f"{int(calculate_average_run_interval(cron_iter) / 3600)}"
 

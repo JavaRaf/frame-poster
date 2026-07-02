@@ -188,7 +188,7 @@ def random_crop(frame_path: Path, configs: dict) -> tuple[Path, str] | None:
                 )
                 return None, None
 
-            # Generate random crop coordinates
+            # Generate random crop coordinates. eg: 0px... 1920px
             crop_x = random.randint(0, image_width - crop_width)
             crop_y = random.randint(0, image_height - crop_height)
 

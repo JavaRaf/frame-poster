@@ -5,5 +5,6 @@ langdetect==1.0.9
 tenacity==9.1.2
 httpx==0.28.1
 Pillow==11.3.0
-cron_descriptor==2.1.0
+croniter==6.2.3
+PyYAML==6.0.3
 

@@ -13,7 +13,7 @@ from src.settings import CONFIGS_PATH, FB_TOKEN_ENV_VAR
 from src.subtitles import get_subtitle_for_frame
 from src.workflow import get_workflow_execution_interval
 
-logger = get_logger(__name__)
+logger = get_logger(__name__) 
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -55,14 +55,14 @@ def main(argv: list[str] | None = None) -> None:
 
     # Static placeholders that do not change between frames.
     static_placeholders = {
-        "season_number": config.in_progress.season,
-        "episode_number": config.in_progress.episode,
-        "episode_title": episode_config.title,
-        "max_frames": episode_config.max_frames,
-        "img_fps": episode_config.image_fps,
-        "fph": config.posting.fph,
-        "execution_interval": get_workflow_execution_interval(),
-        "posting_interval": config.posting.posting_interval,
+        "fph"                : config.posting.fph,
+        "img_fps"            : episode_config.image_fps,
+        "episode_title"      : episode_config.title,
+        "episode_number"     : config.in_progress.episode,
+        "max_frames"         : episode_config.max_frames,
+        "season_number"      : config.in_progress.season,
+        "execution_interval" : get_workflow_execution_interval(),
+        "posting_interval"   : config.posting.posting_interval,
     }
 
     for frame_number in range(config.in_progress.frame + 1, last_frame_to_post + 1):
