@@ -34,16 +34,15 @@ LANGUAGE_CODES = {
 }
 
 
-
-
 def remove_tags(message: str) -> str:
     """Remove ASS/SSA tags and control codes from a subtitle string."""
     if not message or not isinstance(message, str):
         return message
-        
+
     pattern = re.compile(r"\{\s*[^}]*\s*\}|\\N|\\[a-zA-Z]+\d*|\\c&H[0-9A-Fa-f]+&")
     message = pattern.sub(" ", message)
     return re.sub(r"\s+", " ", message).strip()
+
 
 @lru_cache(maxsize=32)
 def parse_ass_file(file_path: Path) -> dict:
@@ -75,28 +74,36 @@ def parse_ass_file(file_path: Path) -> dict:
         try:
             # Split the dialogue line into its respective fields
             parts = line.split(",", 9)
-            subtitles_data.append({
-                "Layer": parts[0],
-                "Start": timestamp_to_seconds(parts[1]),
-                "End": timestamp_to_seconds(parts[2]),
-                "Style": parts[3],
-                "Actor": parts[4],
-                "MarginL": parts[5],
-                "MarginR": parts[6],
-                "MarginV": parts[7],
-                "Effect": parts[8],
-                "Text": remove_tags(parts[9]),
-            })
+            subtitles_data.append(
+                {
+                    "Layer": parts[0],
+                    "Start": timestamp_to_seconds(parts[1]),
+                    "End": timestamp_to_seconds(parts[2]),
+                    "Style": parts[3],
+                    "Actor": parts[4],
+                    "MarginL": parts[5],
+                    "MarginR": parts[6],
+                    "MarginV": parts[7],
+                    "Effect": parts[8],
+                    "Text": remove_tags(parts[9]),
+                }
+            )
         except (IndexError, ValueError) as error:
             # Log the failure but keep parsing the rest of the file.
-            logger.error("Failed to parse ASS dialogue line %r in %s: %s", line.strip(), file_path.name, error)
+            logger.error(
+                "Failed to parse ASS dialogue line %r in %s: %s",
+                line.strip(),
+                file_path.name,
+                error,
+            )
             continue
 
     return {
         "file_name": file_path.name,
         "language": language_name,
-        "subtitles": subtitles_data
+        "subtitles": subtitles_data,
     }
+
 
 @lru_cache(maxsize=32)
 def parse_srt_file(file_path: Path) -> dict:
@@ -160,24 +167,28 @@ def parse_srt_file(file_path: Path) -> dict:
         except (ValueError, AttributeError) as error:
             logger.error(
                 "Failed to parse SRT timestamp range %r -> %r in %s: %s",
-                start_ts, end_ts, file_path.name, error,
+                start_ts,
+                end_ts,
+                file_path.name,
+                error,
             )
             i += 1
             continue
 
-        subtitles_data.append({
-            "Start": start_seconds,
-            "End": end_seconds,
-            "Text": text,
-
-            # these are not used for srt subtitles
-            "Style": None,
-            "Actor": None,
-            "MarginL": None,
-            "MarginR": None,
-            "MarginV": None,
-            "Effect": None,
-        })
+        subtitles_data.append(
+            {
+                "Start": start_seconds,
+                "End": end_seconds,
+                "Text": text,
+                # these are not used for srt subtitles
+                "Style": None,
+                "Actor": None,
+                "MarginL": None,
+                "MarginR": None,
+                "MarginV": None,
+                "Effect": None,
+            }
+        )
 
         collected_text_lines.extend(text_lines)
 
@@ -187,7 +198,9 @@ def parse_srt_file(file_path: Path) -> dict:
 
     # Language detection from collected text
     try:
-        language_name = LANGUAGE_CODES.get(detect(" ".join(collected_text_lines)), "Unknown_language")
+        language_name = LANGUAGE_CODES.get(
+            detect(" ".join(collected_text_lines)), "Unknown_language"
+        )
     except Exception:
         language_name = "Unknown_language"
 
@@ -213,12 +226,12 @@ def __ass_format(frame_number: int, img_fps: float, subtitles_data: dict) -> str
         re.IGNORECASE,
     )
 
-    time = frame_number / img_fps # frame_number in seconds
+    time = frame_number / img_fps  # frame_number in seconds
 
     for sub in subtitles_data.get("subtitles", []):
         if sub["Start"] <= time <= sub["End"]:
-            style = (sub.get("Style") or "")
-            actor = (sub.get("Actor") or "")
+            style = sub.get("Style") or ""
+            actor = sub.get("Actor") or ""
             text = sub.get("Text", "")
             lang = subtitles_data.get("language", "")
 
@@ -230,6 +243,7 @@ def __ass_format(frame_number: int, img_fps: float, subtitles_data: dict) -> str
             return f"[{lang}]\n{text}"
 
     return None
+
 
 def __srt_format(frame_number: int, img_fps: float, subtitles_data: dict) -> str | None:
     """Returns the active SRT subtitle text for the current frame.
@@ -245,7 +259,10 @@ def __srt_format(frame_number: int, img_fps: float, subtitles_data: dict) -> str
             return f"[{lang}]\n{text}" if text else None
     return None
 
-def get_subtitle_for_frame(frame_number: int, episode_number: int, image_fps: int | float) -> str | None:
+
+def get_subtitle_for_frame(
+    frame_number: int, episode_number: int, image_fps: int | float
+) -> str | None:
     """
     Returns formatted subtitle messages for a given frame and episode.
 
@@ -256,12 +273,13 @@ def get_subtitle_for_frame(frame_number: int, episode_number: int, image_fps: in
     Returns:
         str | None: The formatted subtitle messages, or None if not found.
     """
-    
+
     if not isinstance(frame_number, int) or not isinstance(episode_number, int):
         logger.error(
             "get_subtitle_for_frame: frame_number and episode_number must be int, "
             "got %s and %s",
-            type(frame_number).__name__, type(episode_number).__name__,
+            type(frame_number).__name__,
+            type(episode_number).__name__,
         )
         return None
 
@@ -269,7 +287,11 @@ def get_subtitle_for_frame(frame_number: int, episode_number: int, image_fps: in
 
     if not episode_subtitles_folder.exists() or not episode_subtitles_folder.is_dir():
         # Warning (not error) because some episodes legitimately ship without subs.
-        logger.warning("No subtitles folder for episode %02d (expected at %s)", episode_number, episode_subtitles_folder)
+        logger.warning(
+            "No subtitles folder for episode %02d (expected at %s)",
+            episode_number,
+            episode_subtitles_folder,
+        )
         return None
 
     subtitle_files = [f for f in episode_subtitles_folder.iterdir() if f.is_file()]
@@ -282,10 +304,14 @@ def get_subtitle_for_frame(frame_number: int, episode_number: int, image_fps: in
         match subtitle_file.suffix:
             case ".ass":
                 ass_subtitles_data = parse_ass_file(subtitle_file)
-                formatted_message = __ass_format(frame_number, image_fps, ass_subtitles_data)
+                formatted_message = __ass_format(
+                    frame_number, image_fps, ass_subtitles_data
+                )
             case ".srt":
                 srt_subtitles_data = parse_srt_file(subtitle_file)
-                formatted_message = __srt_format(frame_number, image_fps, srt_subtitles_data)
+                formatted_message = __srt_format(
+                    frame_number, image_fps, srt_subtitles_data
+                )
             case _:
                 formatted_message = None
 
@@ -293,8 +319,3 @@ def get_subtitle_for_frame(frame_number: int, episode_number: int, image_fps: in
             formatted_messages += formatted_message + "\n\n"
 
     return formatted_messages or None
-
-
-
-
-

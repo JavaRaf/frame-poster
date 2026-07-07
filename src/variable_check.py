@@ -49,6 +49,7 @@ def run_variable_check() -> None:
     write_to_summary("\n| Variável | Status |")
     write_to_summary("|----------|---------|")
 
+
 if __name__ == "__main__":
     run_variable_check()
 
@@ -63,11 +64,11 @@ def check_fb_token() -> None:
 
     # Remove whitespace and newlines from token to prevent API errors
     fb_token = fb_token.strip()
-    
+
     # Remove FB_TOKEN= prefix if present (common issue in CI/CD environments)
     if fb_token.startswith("FB_TOKEN="):
         fb_token = fb_token[8:]  # Remove "FB_TOKEN=" prefix
-    
+
     # Debug information for troubleshooting
     print(f"Token length: {len(fb_token)}")
     print(f"Token starts with: {repr(fb_token[:20])}")
@@ -83,7 +84,7 @@ def check_fb_token() -> None:
         )
         response.raise_for_status()
         fb_page_name = response.json().get("name")
-        
+
         # Token is valid; display the page name for verification.
         create_table_row("FB_TOKEN", format_success(f"Token is valid - {fb_page_name}"))
 
@@ -92,14 +93,17 @@ def check_fb_token() -> None:
         # embeds the raw access_token in the query string.
         logger.error(
             "FB_TOKEN check failed: HTTP %s - %s",
-            e.response.status_code, e.response.text[:500],
+            e.response.status_code,
+            e.response.text[:500],
         )
-        create_table_row("FB_TOKEN", format_error(f"HTTP error: {e.response.status_code}"))
+        create_table_row(
+            "FB_TOKEN", format_error(f"HTTP error: {e.response.status_code}")
+        )
     except httpx.RequestError as e:
-        logger.error("FB_TOKEN check failed: %s: %s", type(e).__name__, sanitize_for_logging(e))
+        logger.error(
+            "FB_TOKEN check failed: %s: %s", type(e).__name__, sanitize_for_logging(e)
+        )
         create_table_row("FB_TOKEN", format_error("Network error"))
-
-
 
 
 check_fb_token()

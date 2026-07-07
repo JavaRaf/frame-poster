@@ -64,24 +64,17 @@ def timestamp_to_seconds(time_str: str, format: str = "ass") -> float | None:
         float: Total seconds. Or None if error occurs.
     """
     if format == "ass":
-
         try:
             h, m, s = time_str.split(":")
             s, cc = s.split(".")
             cc = cc.ljust(2, "0")  # ensure two digits
-            total_seconds = (
-                int(h) * 3600
-                + int(m) * 60
-                + int(s)
-                + int(cc) / 100
-            )
+            total_seconds = int(h) * 3600 + int(m) * 60 + int(s) + int(cc) / 100
             return total_seconds
         except (ValueError, AttributeError) as error:
             logger.error("Invalid ASS timestamp %r: %s", time_str, error)
             return None
 
     elif format == "srt":
-
         try:
             hours, minutes, rest = time_str.split(":")
             seconds, millis = rest.split(",")
@@ -136,7 +129,9 @@ def frame_to_timestamp(current_frame: int, img_fps: int | float) -> str | None:
     except (TypeError, ZeroDivisionError) as error:
         logger.error(
             "Failed to convert frame %r at fps=%r to timestamp: %s",
-            current_frame, img_fps, error,
+            current_frame,
+            img_fps,
+            error,
         )
         return None
 
@@ -153,7 +148,9 @@ def random_crop(frame_path: Path, configs: dict) -> tuple[Path, str] | None:
     """
     # These are type/state validations (not caught exceptions), so no exc_info.
     if not isinstance(frame_path, Path):
-        logger.error("random_crop: frame_path must be a Path, got %s", type(frame_path).__name__)
+        logger.error(
+            "random_crop: frame_path must be a Path, got %s", type(frame_path).__name__
+        )
         return None, None
 
     if not frame_path.is_file():
@@ -165,15 +162,27 @@ def random_crop(frame_path: Path, configs: dict) -> tuple[Path, str] | None:
         # pixels, not coordinates. The legacy ``min_x``/``min_y`` names are
         # still read as a fallback so older configs.yml files keep working.
         random_crop_cfg = configs.get("posting", {}).get("random_crop", {})
-        min_size = int(random_crop_cfg.get("min_size", random_crop_cfg.get("min_x", 200)))
-        max_size = int(random_crop_cfg.get("max_size", random_crop_cfg.get("min_y", 600)))
+        min_size = int(
+            random_crop_cfg.get("min_size", random_crop_cfg.get("min_x", 200))
+        )
+        max_size = int(
+            random_crop_cfg.get("max_size", random_crop_cfg.get("min_y", 600))
+        )
 
         if min_size <= 0 or max_size <= 0:
-            logger.error("random_crop: crop sizes must be positive, got min=%s max=%s", min_size, max_size)
+            logger.error(
+                "random_crop: crop sizes must be positive, got min=%s max=%s",
+                min_size,
+                max_size,
+            )
             return None, None
 
         if min_size > max_size:
-            logger.error("random_crop: min_size (%s) cannot be greater than max_size (%s)", min_size, max_size)
+            logger.error(
+                "random_crop: min_size (%s) cannot be greater than max_size (%s)",
+                min_size,
+                max_size,
+            )
             return None, None
 
         crop_width = crop_height = random.randint(min_size, max_size)
@@ -184,7 +193,11 @@ def random_crop(frame_path: Path, configs: dict) -> tuple[Path, str] | None:
             if image_width < crop_width or image_height < crop_height:
                 logger.error(
                     "Image %s (%dx%d) is smaller than requested crop (%dx%d)",
-                    frame_path.name, image_width, image_height, crop_width, crop_height,
+                    frame_path.name,
+                    image_width,
+                    image_height,
+                    crop_width,
+                    crop_height,
                 )
                 return None, None
 
@@ -210,22 +223,30 @@ def random_crop(frame_path: Path, configs: dict) -> tuple[Path, str] | None:
             return cropped_path, message
 
     except (OSError, ValueError, Image.DecompressionBombError) as e:
-        logger.error("Failed to crop %s: %s: %s", frame_path.name, type(e).__name__, e, exc_info=True)
+        logger.error(
+            "Failed to crop %s: %s: %s",
+            frame_path.name,
+            type(e).__name__,
+            e,
+            exc_info=True,
+        )
         return None, None
 
+
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
-def get_frame(frame_number: int, episode_number: int, github_expects: dict) -> Path | None:
-    """Download the frame from the github repository. and save it locally. 
+def get_frame(
+    frame_number: int, episode_number: int, github_expects: dict
+) -> Path | None:
+    """Download the frame from the github repository. and save it locally.
 
     Args:
         frame_number (int): The frame number to download.
         episode_number (int): The episode number to download.
         github_expects (dict): The github expects.
-    
+
     Returns:
         Path | None: The path to the downloaded frame, or None if error occurs.
     """
-
 
     # Short label reused across log lines so every message identifies the frame.
     frame_label = f"frame {frame_number} of episode {episode_number:02d}"
@@ -234,7 +255,10 @@ def get_frame(frame_number: int, episode_number: int, github_expects: dict) -> P
     repo = github_expects.get("repo")
     branch = github_expects.get("branch")
     if not all([username, repo, branch]):
-        logger.error("github config missing required keys (username/repo/branch): %r", github_expects)
+        logger.error(
+            "github config missing required keys (username/repo/branch): %r",
+            github_expects,
+        )
         return None
 
     frame_url = (
@@ -273,5 +297,10 @@ def get_frame(frame_number: int, episode_number: int, github_expects: dict) -> P
         # Already logged above; re-raise so tenacity can retry.
         raise
     except httpx.RequestError as e:
-        logger.error("Network error while downloading %s: %s: %s", frame_label, type(e).__name__, e)
+        logger.error(
+            "Network error while downloading %s: %s: %s",
+            frame_label,
+            type(e).__name__,
+            e,
+        )
         return None

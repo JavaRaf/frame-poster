@@ -1,44 +1,74 @@
+"""
+Logger module for application logging
+"""
+
 import logging
-import sys
 from pathlib import Path
+import re
 
-from src.settings import LOG_DIR
 
-LOG_DIR.mkdir(parents=True, exist_ok=True)
-LOG_FILE = LOG_DIR / "app.log"
+# Constants
+LOGS_DIR = Path("logs")
+LOGS_DIR.mkdir(exist_ok=True)
 
-# On Windows the default stdout/stderr encoding is cp1252, which blows up on
-# the Unicode box-drawing glyphs we print ("├── ...") and on any subtitle in
-# non-latin scripts. Switch both streams to UTF-8 so logs and prints work the
-# same locally and in CI (Linux is UTF-8 by default, so this is a no-op there).
-for _stream in (sys.stdout, sys.stderr):
-    reconfigure = getattr(_stream, "reconfigure", None)
-    if reconfigure is not None:
-        try:
-            reconfigure(encoding="utf-8", errors="replace")
-        except (OSError, ValueError):
-            # Some test harnesses replace stdout with objects that don't
-            # support reconfigure(); falling back silently is fine.
-            pass
+LOG_FILE = LOGS_DIR / "app.log"
+LOG_FILE.touch(exist_ok=True)
+LOG_FORMAT = "%(asctime)s | %(levelname)-5s  %(module)-2s -> %(funcName)-2s -> line %(lineno)d | %(message)s"
+DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
-# Format choices, optimized for scanning logs during CI runs:
-#  - time only (HH:MM:SS): a run lasts minutes, the full date is noise;
-#  - fixed-width level (7 chars) so columns line up;
-#  - logger name (e.g. "src.poster"), not "module | funcName | line N",
-#    which was mostly redundant for our one-file-per-module layout.
-# The file and line that produced the record are still available via
-# ``logger.error(..., exc_info=True)`` tracebacks when something breaks.
-logging.basicConfig(
-    level=logging.ERROR,
-    format="%(asctime)s %(levelname)-7s %(name)-18s  %(message)s",
-    datefmt="%H:%M:%S",
-    handlers=[
-        logging.FileHandler(LOG_FILE, encoding="utf-8"),
-        logging.StreamHandler(),
-    ],
-)
+# Patterns for sensitive data sanitization
+SENSITIVE_PATTERNS = [
+    (r"(?i)(access_token(?:%3D|=))([^&\s]+)", "access_token=***"),
+]
+
+
+def sanitize_log_message(message: str) -> str:
+    """
+    Sanitizes sensitive information from log messages.
+
+    Args:
+        message: The original log message.
+
+    Returns:
+        The sanitized message with sensitive data masked.
+    """
+    sanitized = message
+    for pattern, replacement in SENSITIVE_PATTERNS:
+        sanitized = re.sub(pattern, replacement, sanitized, flags=re.IGNORECASE)
+    return sanitized
+
+
+class SanitizingFormatter(logging.Formatter):
+    """Custom formatter that sanitizes sensitive information from log messages."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        original_message = record.getMessage()
+        record.msg = sanitize_log_message(original_message)
+        return super().format(record)
 
 
 def get_logger(name: str) -> logging.Logger:
-    return logging.getLogger(name)
+    """
+    Configures and returns a logger with sanitization for sensitive data.
 
+    Args:
+        name: Logger name (usually __name__)
+
+    Returns:
+        Configured logger instance with sanitizing formatter.
+    """
+    # Create formatter with sanitization
+    formatter = SanitizingFormatter(LOG_FORMAT, DATE_FORMAT)
+
+    # File handler
+    file_handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
+    file_handler.setFormatter(formatter)
+
+    # Console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+
+    # Configure logging
+    logging.basicConfig(level=logging.ERROR, handlers=[file_handler, console_handler])
+
+    return logging.getLogger(name)

@@ -18,20 +18,16 @@ from src.settings import FB_LOG_PATH, FB_TOKEN_ENV_VAR
 logger = get_logger(__name__)
 FB_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
 FB_LOG_PATH.touch(exist_ok=True)
-TOKEN_RE = re.compile(r"(?i)(access_token(?:%3D|=))([^&\s]+)")
 
-
-def sanitize_for_logging(value: object) -> str:
-    """Redact Facebook access tokens from exception strings and URLs."""
-    return TOKEN_RE.sub(r"\1[REDACTED]", "" if value is None else str(value))
 
 class FacebookAPI:
     def __init__(self, api_version: str = "v21.0", access_token: str | None = None):
         self.base_url = f"https://graph.facebook.com/{api_version}"
-        self.client = httpx.Client(base_url=self.base_url, timeout=httpx.Timeout(30, connect=10))
+        self.client = httpx.Client(
+            base_url=self.base_url, timeout=httpx.Timeout(30, connect=10)
+        )
         self.access_token = self._normalize_token(
-            access_token
-            or os.getenv(FB_TOKEN_ENV_VAR, "")
+            access_token or os.getenv(FB_TOKEN_ENV_VAR, "")
         )
 
         if not self.access_token:
@@ -44,10 +40,11 @@ class FacebookAPI:
         token = token.strip().removeprefix("FB_TOKEN=")
         return token if token else None
 
-
     def validate_token(self) -> bool:
         """Return True only when the configured Facebook token is valid."""
-        token = self.access_token or os.getenv(FB_TOKEN_ENV_VAR, "").strip().removeprefix("FB_TOKEN=")
+        token = self.access_token or os.getenv(
+            FB_TOKEN_ENV_VAR, ""
+        ).strip().removeprefix("FB_TOKEN=")
         if not token:
             logger.error("%s is not defined in the environment", FB_TOKEN_ENV_VAR)
             return False
@@ -62,12 +59,9 @@ class FacebookAPI:
             return True
         except httpx.HTTPError as exc:
             logger.error(
-                "Facebook token validation failed: %s: %s",
-                type(exc).__name__,
-                sanitize_for_logging(exc),
+                "Facebook token validation failed: %s: %s", type(exc).__name__, exc
             )
             return False
-
 
     @retry(
         stop=stop_after_attempt(3),
@@ -77,13 +71,17 @@ class FacebookAPI:
     )
     def _try_post(self, endpoint: str, params: dict, files: dict = None) -> str | None:
         headers = {"Authorization": f"Bearer {self.access_token}"}
-        response = self.client.post(endpoint, params=params, files=files, headers=headers)
+        response = self.client.post(
+            endpoint, params=params, files=files, headers=headers
+        )
 
         if response.status_code == 200:
             try:
                 return response.json().get("id")
             except ValueError:
-                logger.error("Facebook response was not valid JSON: %r", response.text[:500])
+                logger.error(
+                    "Facebook response was not valid JSON: %r", response.text[:500]
+                )
                 return None
 
         # Raising triggers tenacity's retry; the caller handles the final failure.
@@ -107,9 +105,11 @@ class FacebookAPI:
                 response.text[:500],
             )
         else:
-            logger.error("Failed to post %s after retries: %s", context, sanitize_for_logging(last_exc))
+            logger.error("Failed to post %s after retries: %s", context, last_exc)
 
-    def post_frame(self, message: str = "", frame_path: Path = None, parent_id: str = None) -> str | None:
+    def post_frame(
+        self, message: str = "", frame_path: Path = None, parent_id: str = None
+    ) -> str | None:
         """
         Posts a message to Facebook.
         If all attempts fail, only logs the error and returns None.
@@ -123,7 +123,8 @@ class FacebookAPI:
 
         # Describe what we're posting so log lines pinpoint the failure.
         context = (
-            f"comment on {parent_id}" if parent_id
+            f"comment on {parent_id}"
+            if parent_id
             else (f"photo {frame_path.name}" if frame_path else "text post")
         )
 
@@ -142,9 +143,6 @@ class FacebookAPI:
                 self._log_post_failure(context, e)
                 return None
 
-    
-
-
     def save_fb_log(self, post_id: str, frame: int, episode: int) -> None:
         """
         Saves the post ID in a format https://facebook.com/{id} creating a direct link to the post
@@ -157,11 +155,13 @@ class FacebookAPI:
         """
         try:
             with FB_LOG_PATH.open("a", encoding="utf-8") as file:
-                file.write(f"frame {frame}, episode {episode} - https://facebook.com/{post_id}\n")
+                file.write(
+                    f"frame {frame}, episode {episode} - https://facebook.com/{post_id}\n"
+                )
         except OSError as e:
-            logger.error("Failed to append to fb log (%s): %s", FB_LOG_PATH, e, exc_info=True)
-
-
+            logger.error(
+                "Failed to append to fb log (%s): %s", FB_LOG_PATH, e, exc_info=True
+            )
 
     def update_bio(self, message: str) -> bool:
         """
@@ -176,7 +176,7 @@ class FacebookAPI:
         if message == "":
             logger.info("Bio message is empty, skipping bio update.")
             return True
-        
+
         endpoint = f"{self.base_url}/me"
         params = {"about": message}
         headers = {"Authorization": f"Bearer {self.access_token}"}
@@ -190,14 +190,14 @@ class FacebookAPI:
             # megabytes if something really weird comes back.
             logger.error(
                 "Failed to update bio: HTTP %s - %s",
-                response.status_code, response.text[:500],
+                response.status_code,
+                response.text[:500],
             )
             return False
 
         except httpx.HTTPError as e:
-            logger.error("Failed to update bio: %s: %s", type(e).__name__, sanitize_for_logging(e))
+            logger.error("Failed to update bio: %s: %s", type(e).__name__, e)
             return False
-
 
     @lru_cache(maxsize=128)
     def album_name(self, album_id: str) -> str | None:
@@ -215,16 +215,21 @@ class FacebookAPI:
                 return response.json().get("name")
             logger.error(
                 "Failed to get album name: HTTP %s - %s",
-                response.status_code, response.text[:500],
+                response.status_code,
+                response.text[:500],
             )
             return None
         except httpx.HTTPError as e:
-            logger.error("Failed to get album name: %s: %s", type(e).__name__, sanitize_for_logging(e))
+            logger.error("Failed to get album name: %s: %s", type(e).__name__, e)
             return None
-        
 
-
-    def repost_frame_to_album(self, message: str = "", frame_path: Path = None, album_id: str = None, configs: dict = None) -> str | None:
+    def repost_frame_to_album(
+        self,
+        message: str = "",
+        frame_path: Path = None,
+        album_id: str = None,
+        configs: dict = None,
+    ) -> str | None:
         """
         Repost a frame to an album.
         Returns the post ID if successful, otherwise returns None.
@@ -234,7 +239,7 @@ class FacebookAPI:
 
         if not reposting_to_album or not album_id:
             return None
-        
+
         if not str(album_id).isdigit():
             logger.error(
                 "Album repost is enabled but album_id %r is not a valid integer",
@@ -245,15 +250,15 @@ class FacebookAPI:
         try:
             id = self.post_frame(message, frame_path, album_id)
             if not id:
-                logger.error(f'Failed to repost frame to album {album_id}', flush=True)
+                logger.error(f"Failed to repost frame to album {album_id}", flush=True)
                 return None
 
-            print(f'├── Frame reposted to album "{self.album_name(album_id)}" with id "{id}" ', flush=True)
+            print(
+                f'├── Frame reposted to album "{self.album_name(album_id)}" with id "{id}" ',
+                flush=True,
+            )
             return id
 
         except RetryError as e:
             self._log_post_failure(f"album repost to {album_id}", e)
             return None
-
-
-    

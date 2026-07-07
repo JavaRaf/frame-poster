@@ -16,7 +16,10 @@ from src.logger import get_logger
 
 logger = get_logger(__name__)
 
-def post_frame(facebook: FacebookAPI, message: str, frame_path: Path, placeholders: dict) -> str | None:
+
+def post_frame(
+    facebook: FacebookAPI, message: str, frame_path: Path, placeholders: dict
+) -> str | None:
     """Post a frame and return the post ID."""
     # Small label used in log messages to pinpoint which frame/episode failed.
     frame_label = (
@@ -29,7 +32,9 @@ def post_frame(facebook: FacebookAPI, message: str, frame_path: Path, placeholde
             print(
                 f"├── season {placeholders.get('season_number')}, "
                 f"episode {placeholders.get('episode_number')}, "
-                f"frame {placeholders.get('frame_number')} out of {placeholders.get('max_frames')} has been posted", flush=True)
+                f"frame {placeholders.get('frame_number')} out of {placeholders.get('max_frames')} has been posted",
+                flush=True,
+            )
             sleep(2)
             return post_id
         logger.error("Facebook API returned no post id for %s", frame_label)
@@ -37,11 +42,23 @@ def post_frame(facebook: FacebookAPI, message: str, frame_path: Path, placeholde
     except Exception as e:
         # Keep the exception type+message so the log is actionable
         # (e.g. HTTPStatusError vs ConnectError is very different).
-        logger.error("Failed to post %s: %s: %s", frame_label, type(e).__name__, sanitize_for_logging(e))
+        logger.error(
+            "Failed to post %s: %s: %s",
+            frame_label,
+            type(e).__name__,
+            e,
+        )
         return None
 
 
-def post_subtitles(facebook: FacebookAPI, post_id: str, frame_number: int, episode_number: int, subtitle: str, configs: dict) -> str | None:
+def post_subtitles(
+    facebook: FacebookAPI,
+    post_id: str,
+    frame_number: int,
+    episode_number: int,
+    subtitle: str,
+    configs: dict,
+) -> str | None:
     """Post the subtitles associated with the frame."""
     if not configs.get("posting", {}).get("posting_subtitles", False):
         return None
@@ -59,11 +76,18 @@ def post_subtitles(facebook: FacebookAPI, post_id: str, frame_number: int, episo
         logger.error("Facebook API returned no post id for %s", context)
         return None
     except Exception as e:
-        logger.error("Failed to post %s: %s: %s", context, type(e).__name__, sanitize_for_logging(e))
+        logger.error(
+            "Failed to post %s: %s: %s",
+            context,
+            type(e).__name__,
+            e,
+        )
         return None
 
 
-def post_random_crop(facebook: FacebookAPI, post_id: str, frame_path: Path, configs: dict) -> str | None:
+def post_random_crop(
+    facebook: FacebookAPI, post_id: str, frame_path: Path, configs: dict
+) -> str | None:
     """Post a random cropped frame."""
     if not configs.get("posting", {}).get("random_crop", {}).get("enabled", False):
         return None
@@ -79,17 +103,15 @@ def post_random_crop(facebook: FacebookAPI, post_id: str, frame_path: Path, conf
             print("└── Random Crop has been posted", flush=True)
             sleep(2)
             return crop_post_id
-        logger.error("Facebook API returned no post id for random crop of %s", frame_path.name)
+        logger.error(
+            "Facebook API returned no post id for random crop of %s", frame_path.name
+        )
         return None
     except Exception as e:
         logger.error(
             "Failed to post random crop of %s: %s: %s",
             frame_path.name,
             type(e).__name__,
-            sanitize_for_logging(e),
+            e,
         )
         return None
-
-
-
-

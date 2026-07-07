@@ -1,67 +1,95 @@
 """
-This module provides functions to calculate the average run interval of a GitHub Actions workflow.
+This module provides functions to calculate the average run interval of GitHub Actions workflows.
 """
 
-from datetime import datetime
-from pathlib import Path
-from statistics import mean
-
-import yaml
 from croniter import croniter
+from pathlib import Path
+import yaml
+from datetime import datetime
+from statistics import mean
+from functools import lru_cache
+from src.logger import get_logger
 
-# {'name': 'init banner', True: {'workflow_dispatch': None, 'schedule': [{'cron': '0 */3 * * *'}]}}
+
+logger = get_logger(__name__)
 
 
-def get_cron_iterator(file_path: str = ".github/workflows/01.yml") -> croniter:
+# Constants
+WORKFLOW_PATH = ".github/workflows/starter.yml"
+DEFAULT_RUNS = 20
+SECONDS_PER_HOUR = 3600
+
+
+@lru_cache(maxsize=32)
+def __read_cron_expression(file_path: str = WORKFLOW_PATH) -> str | None:
     """
-    Returns a croniter object representing the cron schedule.
+    Reads and returns the cron expression from a GitHub Actions workflow file.
 
     Args:
-        file_path: The path to the workflow file (relative to project root).
+        file_path: Path to the workflow YAML file.
 
     Returns:
-        A croniter object representing the cron schedule.
+        The cron expression string, or None if not found.
     """
     try:
-        if not Path(file_path).is_absolute():
-            file_path = Path(__file__).parent.parent / file_path
-        
         with Path(file_path).open("r") as f:
             content: dict = yaml.safe_load(f)
-            return croniter(content.get(True).get("schedule")[0].get("cron"))
-    except Exception as e:
-        print(e)
+            return content.get(True).get("schedule")[0].get("cron")
+    except (FileNotFoundError, KeyError, AttributeError) as e:
+        logger.error(f"Error reading cron expression: {e}")
+        return None
 
 
-def calculate_average_run_interval(cron_iter: croniter, runs: int = 20) -> float:
+@lru_cache(maxsize=32)
+def __calc_average_run_interval(
+    cron_expr: str, runs: int = DEFAULT_RUNS
+) -> float | None:
     """
-    Calculates the average run interval in seconds.
+    Calculates the average run interval in seconds for a given cron expression.
 
     Args:
-        cron_iter: A croniter object representing the cron schedule.
-        runs: The number of runs to calculate the average interval for.
+        cron_expr: A cron expression string (e.g., "0 */3 * * *").
+        runs: Number of runs to calculate the average interval for.
 
     Returns:
-        The average run interval in seconds.
+        The average run interval in seconds, or None if calculation fails.
     """
-    intervals = []
+    try:
+        cron_iter = croniter(cron_expr)
+        intervals = []
 
-    # Discard first run for improved accuracy
-    prev_time = cron_iter.get_next(datetime)
+        # Discard first run as it may be inconsistent
+        prev_time = cron_iter.get_next(datetime)
 
-    for _ in range(runs):
-        next_time = cron_iter.get_next(datetime)
-        interval = (next_time - prev_time).total_seconds()
-        intervals.append(interval)
-        prev_time = next_time
+        for _ in range(runs):
+            next_time = cron_iter.get_next(datetime)
+            interval = (next_time - prev_time).total_seconds()
+            intervals.append(interval)
+            prev_time = next_time
 
-    return mean(intervals)
+        return mean(intervals)
+    except Exception as e:
+        logger.error(f"Error calculating interval: {e}")
+        return None
 
 
-def get_workflow_interval() -> str | None:
+@lru_cache(maxsize=1)
+def get_workflow_interval_hours(file_path: str = WORKFLOW_PATH) -> str | None:
     """
-    Returns interval in hours.
-    """
-    cron_iter = get_cron_iterator()
-    return f"{int(calculate_average_run_interval(cron_iter) / 3600)}"
+    Returns the workflow's average run interval in hours.
 
+    Args:
+        file_path: Path to the workflow YAML file.
+
+    Returns:
+        The interval in hours as a string, or None if calculation fails.
+    """
+    cron_expr = __read_cron_expression(file_path)
+    if not cron_expr:
+        return None
+
+    avg_seconds = __calc_average_run_interval(cron_expr)
+    if avg_seconds is None:
+        return None
+
+    return str(int(avg_seconds / SECONDS_PER_HOUR))

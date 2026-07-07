@@ -13,7 +13,9 @@ from src.settings import CONFIGS_PATH as DEFAULT_CONFIGS_PATH
 # Creating YAML instance and configuring it for consistent YAML parsing and writing
 yaml: YAML = YAML()
 yaml.preserve_quotes = True  # Preserves quotes in YAML values
-yaml.indent(mapping=2, sequence=4, offset=2)  # Sets indentation for mappings and sequences
+yaml.indent(
+    mapping=2, sequence=4, offset=2
+)  # Sets indentation for mappings and sequences
 yaml.default_flow_style = False  # Uses block style for YAML
 yaml.width = 4096  # Prevents line wrapping
 
@@ -25,7 +27,11 @@ def _merge_yaml(base: CommentedMap | dict, updates: dict) -> CommentedMap | dict
     if isinstance(base, CommentedMap) and isinstance(updates, dict):
         result = deepcopy(base)
         for key, value in updates.items():
-            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            if (
+                key in result
+                and isinstance(result[key], dict)
+                and isinstance(value, dict)
+            ):
                 result[key] = _merge_yaml(result[key], value)
             else:
                 result[key] = deepcopy(value)
@@ -55,11 +61,19 @@ def load_configs(config_path: Path | str | None = None) -> dict:
         with config_path.open("r", encoding="utf-8") as file:
             configs = yaml.load(file)
             if configs is None:
-                logger.warning("Config file %s is empty; returning empty dict", config_path.name)
+                logger.warning(
+                    "Config file %s is empty; returning empty dict", config_path.name
+                )
                 return {}
             return configs
     except (OSError, ValueError) as error:
-        logger.error("Failed to load %s: %s: %s", config_path.name, type(error).__name__, error, exc_info=True)
+        logger.error(
+            "Failed to load %s: %s: %s",
+            config_path.name,
+            type(error).__name__,
+            error,
+            exc_info=True,
+        )
         return {}
 
 
@@ -88,7 +102,6 @@ def load_and_validate(config_path: Path | str | None = None) -> AppConfig:
         raise SystemExit(1) from exc
 
 
-
 def save_configs(configs: dict, config_path: Path | str | None = None) -> None:
     """
     Atomically writes the configuration dict back to the configured YAML path.
@@ -115,7 +128,13 @@ def save_configs(configs: dict, config_path: Path | str | None = None) -> None:
             yaml.dump(updated, file)
         os.replace(tmp_path, config_path)
     except OSError as error:
-        logger.error("Failed to save %s: %s: %s", config_path.name, type(error).__name__, error, exc_info=True)
+        logger.error(
+            "Failed to save %s: %s: %s",
+            config_path.name,
+            type(error).__name__,
+            error,
+            exc_info=True,
+        )
         if tmp_path.exists():
             try:
                 tmp_path.unlink()

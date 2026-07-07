@@ -12,12 +12,9 @@ __pycache__/
 .env
 test.py
 pyproject.toml
-images/*/
-temp/*/
-temp/*/
-logs/*/
-temp/*/
-logs/*/
+images/
+temp/
+logs/
 fixs.txt
 .ruff_cache/
 .venv/

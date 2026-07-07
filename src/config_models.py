@@ -92,9 +92,7 @@ class AppConfig(BaseModel):
         """Remove episode entries that are ``None`` (key with no value in YAML)."""
         episodes = data.get("episodes", {})
         if isinstance(episodes, dict):
-            data["episodes"] = {
-                k: v for k, v in episodes.items() if v is not None
-            }
+            data["episodes"] = {k: v for k, v in episodes.items() if v is not None}
         return data
 
     @model_validator(mode="after")
