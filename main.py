@@ -3,6 +3,7 @@ import os
 import time
 from pathlib import Path
 
+from src.console import console, print_header, print_separator
 from src.facebook import FacebookAPI
 from src.frame_utils import frame_to_timestamp, get_frame
 from src.load_configs import load_and_validate, save_configs
@@ -11,7 +12,10 @@ from src.message import format_message
 from src.poster import post_frame, post_random_crop, post_subtitles
 from src.settings import CONFIGS_PATH, FB_TOKEN_ENV_VAR
 from src.subtitles import get_subtitle_for_frame
-from src.workflow import get_workflow_execution_interval
+from src.summary_step import Status, SummaryTable
+from src.variable_check import check_fb_token
+from src.workflow import get_workflow_interval_hours
+
 
 logger = get_logger(__name__) 
 
@@ -39,16 +43,23 @@ def main(argv: list[str] | None = None) -> None:
     if args.fb_token:
         os.environ[FB_TOKEN_ENV_VAR] = args.fb_token.strip()
 
+    # ── Token check at the very beginning ──────────────────────────────
+    with SummaryTable() as table:
+        check_fb_token(table)
+
+    # Temporary client just for token validation (default api_version is fine).
+    if not FacebookAPI(access_token=args.fb_token).validate_token():
+        logger.error("Aborting run: Facebook token is invalid or missing.")
+        return
+    # ────────────────────────────────────────────────────────────────────
+
     config_path = Path(args.config_file) if args.config_file else CONFIGS_PATH
     config = load_and_validate(config_path)
+
     facebook_client = FacebookAPI(
         api_version=config.facebook.api_version,
         access_token=args.fb_token,
     )
-
-    if not facebook_client.validate_token():
-        logger.error("Aborting run: Facebook token is invalid or missing.")
-        return
 
     episode_config = config.episodes[config.in_progress.episode]
     last_frame_to_post = config.in_progress.frame + config.posting.fph
@@ -61,7 +72,7 @@ def main(argv: list[str] | None = None) -> None:
         "episode_number"     : config.in_progress.episode,
         "max_frames"         : episode_config.max_frames,
         "season_number"      : config.in_progress.season,
-        "execution_interval" : get_workflow_execution_interval(),
+        "execution_interval" : get_workflow_interval_hours(),
         "posting_interval"   : config.posting.posting_interval,
     }
 
@@ -125,8 +136,8 @@ def main(argv: list[str] | None = None) -> None:
         post_random_crop(facebook_client, post_id, frame_path, current_config_snapshot)
         facebook_client.save_fb_log(post_id, frame_number, config.in_progress.episode)
 
-        print(f"{'-' * 50}\n\n")
-        time.sleep(config.posting.posting_interval * 60)  # 2 * 60 = 2 minutes
+        print_separator()
+        time.sleep(config.posting.posting_interval * 2)  # 2 * 60 = 2 minutes
 
     # Update the Facebook bio with the final formatted message.
     bio_message = format_message(config.bio_msg, static_placeholders)
@@ -139,6 +150,6 @@ def main(argv: list[str] | None = None) -> None:
 
 
 if __name__ == "__main__":
-    print('\n' + '-' * 50 + '\n' "Starting the script" + '\n' + '-' * 50 + "\n\n", flush=True)
+    print_header("🚀 Starting the script")
     main()
-    print('\n' + '-' * 50 + '\n' "Ending the script" + '\n' + '-' * 50 + "\n\n", flush=True)
+    print_header("✅ Ending the script")

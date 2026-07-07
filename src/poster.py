@@ -10,7 +10,8 @@ from pathlib import Path
 from time import sleep
 
 # Third party imports
-from src.facebook import FacebookAPI, sanitize_for_logging
+from facebook import FacebookAPI
+from src.console import print_frame_posted, print_info, print_leaf
 from src.frame_utils import random_crop
 from src.logger import get_logger
 
@@ -29,11 +30,11 @@ def post_frame(
     try:
         post_id = facebook.post_frame(message, frame_path)
         if post_id:
-            print(
-                f"├── season {placeholders.get('season_number')}, "
-                f"episode {placeholders.get('episode_number')}, "
-                f"frame {placeholders.get('frame_number')} out of {placeholders.get('max_frames')} has been posted",
-                flush=True,
+            print_frame_posted(
+                season=placeholders.get("season_number"),
+                episode=placeholders.get("episode_number"),
+                frame=placeholders.get("frame_number"),
+                max_frames=placeholders.get("max_frames"),
             )
             sleep(2)
             return post_id
@@ -70,7 +71,7 @@ def post_subtitles(
     try:
         subtitle_post_id = facebook.post_frame(subtitle, None, post_id)
         if subtitle_post_id:
-            print("├── Subtitle has been posted", flush=True)
+            print_info("Subtitle has been posted")
             sleep(2)
             return subtitle_post_id
         logger.error("Facebook API returned no post id for %s", context)
@@ -100,7 +101,7 @@ def post_random_crop(
 
         crop_post_id = facebook.post_frame(crop_message, crop_path, post_id)
         if crop_post_id:
-            print("└── Random Crop has been posted", flush=True)
+            print_leaf("Random Crop has been posted")
             sleep(2)
             return crop_post_id
         logger.error(

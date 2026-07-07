@@ -18,3 +18,4 @@ logs/
 fixs.txt
 .ruff_cache/
 .venv/
+summary.md

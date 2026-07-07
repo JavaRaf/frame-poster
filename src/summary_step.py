@@ -74,12 +74,12 @@ class SummaryTable:
         write_summary(f"| `{key}` | {value} |")
 
 
-# call this module directly for testing - e.g.: src/summary_step.py
-if __name__ == "__main__":
-    # Using context manager
-    with SummaryTable() as table:
-        table.add_row("VAR1", "value1", Status.SUCCESS)
-        table.add_row("VAR2", "value2", Status.ERROR)
-        table.add_row("VAR3", "value3", Status.WARNING)
+# # call this module directly for testing - e.g.: src/summary_step.py
+# if __name__ == "__main__":
+#     # Using context manager
+#     with SummaryTable() as table:
+#         table.add_row("VAR1", "value1", Status.SUCCESS)
+#         table.add_row("VAR2", "value2", Status.ERROR)
+#         table.add_row("VAR3", "value3", Status.WARNING)
 
-    print(f"Summary file: {SUMMARY_FILE}")
+#     print(f"Summary file: {SUMMARY_FILE}")
