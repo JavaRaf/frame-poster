@@ -20,8 +20,8 @@ facebook:
 # progress of the posting (format: integer)
 in_progress:
   season: 1
-  episode: 3
-  frame: 13
+  episode: 4
+  frame: 0
 
 
 episodes:

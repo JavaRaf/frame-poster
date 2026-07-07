@@ -17,7 +17,7 @@ if not DOTENV_PATH.is_absolute():
 load_dotenv(DOTENV_PATH, override=False)
 
 LOG_DIR = Path(os.getenv("LOG_DIR", ROOT_DIR / "logs"))
-FB_LOG_PATH = Path(os.getenv("FB_LOG_PATH", LOG_DIR / "fb_log.txt"))
+FB_LOG_PATH = Path(os.getenv("FB_LOG_PATH", LOG_DIR / "facebook.log"))
 IMAGES_DIR = Path(os.getenv("IMAGES_DIR", ROOT_DIR / "images"))
 TEMP_DIR = Path(os.getenv("TEMP_DIR", ROOT_DIR / "temp"))
 SUBTITLES_DIR = Path(os.getenv("SUBTITLES_DIR", ROOT_DIR / "subtitles"))
