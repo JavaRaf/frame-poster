@@ -10,7 +10,7 @@ from pathlib import Path
 from time import sleep
 
 # Third party imports
-from facebook import FacebookAPI
+from src.facebook import FacebookAPI
 from src.console import print_frame_posted, print_info, print_leaf
 from src.frame_utils import random_crop
 from src.logger import get_logger
