@@ -3,16 +3,22 @@ import os
 import httpx
 
 from src.logger import get_logger
-from src.summary_step import Status, SummaryTable
+from src.summary_step import Status, SummaryTable, add_summary_row
 
 logger = get_logger(__name__)
 
 
-def check_fb_token(table: SummaryTable) -> None:
-    """Check whether the Facebook token is present and valid."""
+def check_fb_token(*, table: SummaryTable | None = None) -> None:
+    """Check whether the Facebook token is present and valid.
+
+    Args:
+        table: Optional SummaryTable instance (for ``with SummaryTable()`` usage).
+               When omitted, ``add_summary_row`` is used directly.
+    """
+    add = table.add_row if table else add_summary_row
     fb_token = os.getenv("FB_TOKEN")
     if not fb_token:
-        table.add_row("FB_TOKEN", "Token not found", Status.ERROR)
+        add("FB_TOKEN", "Token not found", Status.ERROR)
         return
 
     # Remove whitespace and newlines from token to prevent API errors
@@ -38,22 +44,19 @@ def check_fb_token(table: SummaryTable) -> None:
         response.raise_for_status()
         fb_page_name = response.json().get("name")
 
-        # Token is valid; display the page name for verification.
-        table.add_row(
+        add(
             "FB_TOKEN",
             f"Token is valid - {fb_page_name}",
             Status.SUCCESS,
         )
 
     except httpx.HTTPStatusError as e:
-        # Note: intentionally not logging e.request.url here because it
-        # embeds the raw access_token in the query string.
         logger.error(
             "FB_TOKEN check failed: HTTP %s - %s",
             e.response.status_code,
             e.response.text[:500],
         )
-        table.add_row(
+        add(
             "FB_TOKEN",
             f"HTTP error: {e.response.status_code}",
             Status.ERROR,
@@ -62,7 +65,7 @@ def check_fb_token(table: SummaryTable) -> None:
         logger.error(
             "FB_TOKEN check failed: %s: %s", type(e).__name__, e
         )
-        table.add_row(
+        add(
             "FB_TOKEN",
             "Network error",
             Status.ERROR,

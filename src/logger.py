@@ -42,8 +42,12 @@ class SanitizingFormatter(logging.Formatter):
     """Custom formatter that sanitizes sensitive information from log messages."""
 
     def format(self, record: logging.LogRecord) -> str:
+        # Resolve the final formatted string first (msg % args), then sanitize it.
+        # Clear args afterward so super().format() doesn't try to format again
+        # and crash with "not all arguments converted during string formatting".
         original_message = record.getMessage()
         record.msg = sanitize_log_message(original_message)
+        record.args = None
         return super().format(record)
 
 
