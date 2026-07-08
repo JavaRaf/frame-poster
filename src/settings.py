@@ -21,7 +21,7 @@ FB_LOG_PATH = Path(os.getenv("FB_LOG_PATH", LOG_DIR / "facebook.log"))
 IMAGES_DIR = Path(os.getenv("IMAGES_DIR", ROOT_DIR / "images"))
 TEMP_DIR = Path(os.getenv("TEMP_DIR", ROOT_DIR / "temp"))
 SUBTITLES_DIR = Path(os.getenv("SUBTITLES_DIR", ROOT_DIR / "subtitles"))
-GITHUB_SUMMARY_PATH = os.getenv("GITHUB_STEP_SUMMARY")
+GITHUB_SUMMARY_PATH: str | None = os.getenv("GITHUB_STEP_SUMMARY")
 LOCAL_SUMMARY_PATH = Path(os.getenv("SUMMARY_PATH", ROOT_DIR / "summary.md"))
 
 LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -30,8 +30,3 @@ TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
 FB_TOKEN_ENV_VAR = "FB_TOKEN"
 
-
-def resolve_path(path: str | Path) -> Path:
-    """Resolve a relative filesystem path against the project root."""
-    candidate = Path(path)
-    return candidate if candidate.is_absolute() else ROOT_DIR / candidate

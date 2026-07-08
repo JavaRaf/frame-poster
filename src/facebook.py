@@ -1,5 +1,4 @@
 import os
-import re
 from pathlib import Path
 from functools import lru_cache
 
@@ -13,11 +12,9 @@ from tenacity import (
 )
 
 from src.logger import get_logger
-from src.settings import FB_LOG_PATH, FB_TOKEN_ENV_VAR
+from src.settings import FB_TOKEN_ENV_VAR
 
 logger = get_logger(__name__)
-FB_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-FB_LOG_PATH.touch(exist_ok=True)
 
 
 class FacebookAPI:
@@ -50,10 +47,9 @@ class FacebookAPI:
             return False
 
         try:
-            response = httpx.get(
-                f"{self.base_url}/me",
+            response = self.client.get(
+                "/me",
                 headers={"Authorization": f"Bearer {token}"},
-                timeout=15,
             )
             response.raise_for_status()
             return True
@@ -88,25 +84,6 @@ class FacebookAPI:
         response.raise_for_status()
         return None
 
-    def _log_post_failure(self, context: str, error: RetryError) -> None:
-        """Log the root cause hidden inside a tenacity ``RetryError``.
-
-        Without this, all we'd see is ``RetryError: Failed to post after
-        multiple attempts`` and we'd lose the actual Graph API payload (which
-        usually has a very clear message, e.g. "Error validating access token").
-        """
-        last_exc = error.last_attempt.exception() if error.last_attempt else None
-        if isinstance(last_exc, httpx.HTTPStatusError):
-            response = last_exc.response
-            logger.error(
-                "Failed to post %s after retries: HTTP %s - %s",
-                context,
-                response.status_code,
-                response.text[:500],
-            )
-        else:
-            logger.error("Failed to post %s after retries: %s", context, last_exc)
-
     def post_frame(
         self, message: str = "", frame_path: Path = None, parent_id: str = None
     ) -> str | None:
@@ -132,7 +109,7 @@ class FacebookAPI:
             try:
                 return self._try_post(endpoint, params)
             except RetryError as e:
-                self._log_post_failure(context, e)
+                logger.error("Failed to post %s after retries: %s", context, e)
                 return None
 
         with open(frame_path, "rb") as file:
@@ -140,28 +117,8 @@ class FacebookAPI:
             try:
                 return self._try_post(endpoint, params, files)
             except RetryError as e:
-                self._log_post_failure(context, e)
+                logger.error("Failed to post %s after retries: %s", context, e)
                 return None
-
-    def save_fb_log(self, post_id: str, frame: int, episode: int) -> None:
-        """
-        Saves the post ID in a format https://facebook.com/{id} creating a direct link to the post
-        Args:
-            post_id (str): The ID of the post
-            frame (int): The frame number
-            episode (int): The episode number
-        Returns:
-            None
-        """
-        try:
-            with FB_LOG_PATH.open("a", encoding="utf-8") as file:
-                file.write(
-                    f"frame {frame}, episode {episode} - https://facebook.com/{post_id}\n"
-                )
-        except OSError as e:
-            logger.error(
-                "Failed to append to fb log (%s): %s", FB_LOG_PATH, e, exc_info=True
-            )
 
     def update_bio(self, message: str) -> bool:
         """
@@ -260,5 +217,7 @@ class FacebookAPI:
             return id
 
         except RetryError as e:
-            self._log_post_failure(f"album repost to {album_id}", e)
+            logger.error(
+                "Failed to repost to album %s after retries: %s", album_id, e
+            )
             return None

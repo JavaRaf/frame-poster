@@ -7,7 +7,7 @@ from src.console import console, print_header, print_separator
 from src.facebook import FacebookAPI
 from src.frame_utils import frame_to_timestamp, get_frame
 from src.load_configs import load_and_validate, save_configs
-from src.logger import get_logger
+from src.logger import get_logger, log_post_id
 from src.message import format_message
 from src.poster import post_frame, post_random_crop, post_subtitles
 from src.settings import CONFIGS_PATH, FB_TOKEN_ENV_VAR
@@ -117,10 +117,10 @@ def main(argv: list[str] | None = None) -> None:
         facebook_client.repost_frame_to_album(message, frame_path, episode_config.album_id, current_config_snapshot)
         post_subtitles(facebook_client, post_id, frame_number, config.in_progress.episode, subtitle_text, current_config_snapshot)
         post_random_crop(facebook_client, post_id, frame_path, current_config_snapshot)
-        facebook_client.save_fb_log(post_id, frame_number, config.in_progress.episode)
+        log_post_id(post_id, frame_number, config.in_progress.episode)
 
         print_separator()
-        time.sleep(config.posting.posting_interval * 60)  # 2 * 60 = 2 minutes
+        time.sleep(config.posting.posting_interval * 5)  # 2 * 60 = 2 minutes
 
     # Update the Facebook bio with the final formatted message.
     bio_message = format_message(config.bio_msg, static_placeholders)

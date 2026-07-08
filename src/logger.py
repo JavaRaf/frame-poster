@@ -6,6 +6,8 @@ import logging
 from pathlib import Path
 import re
 
+from src.settings import FB_LOG_PATH
+
 
 # Constants
 LOGS_DIR = Path("logs")
@@ -76,3 +78,29 @@ def get_logger(name: str) -> logging.Logger:
     logging.basicConfig(level=logging.ERROR, handlers=[file_handler, console_handler])
 
     return logging.getLogger(name)
+
+
+# ── Facebook post log ─────────────────────────────────────────────────
+
+FB_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+FB_LOG_PATH.touch(exist_ok=True)
+
+
+def log_post_id(post_id: str, frame: int, episode: int) -> None:
+    """Append a posted frame link to the Facebook log file.
+
+    Args:
+        post_id: The ID returned by the Facebook API.
+        frame: The frame number that was posted.
+        episode: The episode number that was posted.
+    """
+    try:
+        with FB_LOG_PATH.open("a", encoding="utf-8") as f:
+            f.write(
+                f"frame {frame}, episode {episode} - https://facebook.com/{post_id}\n"
+            )
+    except OSError as e:
+        logger = get_logger(__name__)
+        logger.error(
+            "Failed to append to fb log (%s): %s", FB_LOG_PATH, e, exc_info=True
+        )
