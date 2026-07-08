@@ -20,7 +20,7 @@ facebook:
 # progress of the posting (format: integer)
 in_progress:
   season: 1
-  episode: 4
+  episode: 1
   frame: 0
 
 
@@ -28,7 +28,7 @@ episodes:
   1:
     title:           # title for the episode (optional)
     image_fps: 3.5   # frames per second of the image/video (necessary to know when to stop posting)
-    max_frames: 15   # maximum frames in the episode (exigid to know when to stop posting)
+    max_frames: 500   # maximum frames in the episode (exigid to know when to stop posting)
     album_id: 703927706019990      # album id for repost frames in a facebook album (optional)       
   2:
     title:           # title for the episode (optional)
