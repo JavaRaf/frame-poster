@@ -12,7 +12,7 @@ from src.message import format_message
 from src.poster import post_frame, post_random_crop, post_subtitles
 from src.settings import CONFIGS_PATH, FB_TOKEN_ENV_VAR
 from src.subtitles import get_subtitle_for_frame
-from src.summary_step import Status, SummaryTable, add_summary_row, start_summary, end_summary
+from src.summary_step import Status, add_summary_row, start_summary, end_summary
 from src.variable_check import check_fb_token
 from src.workflow import get_workflow_interval_hours
 
@@ -69,7 +69,6 @@ def main(argv: list[str] | None = None) -> None:
                 config.in_progress.episode,
                 config.in_progress.episode + 1,
             )
-            add_summary_row("Episode", f"{config.in_progress.episode} completed", Status.SUCCESS)
             config.in_progress.episode += 1
             config.in_progress.frame = 0
             save_configs(config.model_dump(), config_path)
@@ -82,7 +81,6 @@ def main(argv: list[str] | None = None) -> None:
                 "Aborting cycle: could not download frame %s of episode %02d",
                 frame_number, config.in_progress.episode,
             )
-            add_summary_row(f"Frame {frame_number}", "Download failed", Status.ERROR)
             break
 
         # Retrieve the subtitle line for the current frame.
@@ -101,8 +99,6 @@ def main(argv: list[str] | None = None) -> None:
                 "Aborting cycle: empty message after formatting for frame %s of episode %02d",
                 frame_number, config.in_progress.episode,
             )
-            add_summary_row(f"Frame {frame_number}", "Empty message", Status.ERROR)
-            break
 
         # Publish the frame to Facebook.
         post_id = post_frame(facebook_client, message, frame_path, placeholders)
@@ -111,8 +107,6 @@ def main(argv: list[str] | None = None) -> None:
                 "Aborting cycle: frame %s of episode %02d was not posted",
                 frame_number, config.in_progress.episode,
             )
-            add_summary_row(f"Frame {frame_number}", "Post failed", Status.ERROR)
-            break
 
         # Save progress after a successful post.
         config.in_progress.frame = frame_number
@@ -126,14 +120,13 @@ def main(argv: list[str] | None = None) -> None:
         facebook_client.save_fb_log(post_id, frame_number, config.in_progress.episode)
 
         print_separator()
-        time.sleep(config.posting.posting_interval * 2)  # 2 * 60 = 2 minutes
+        time.sleep(config.posting.posting_interval * 60)  # 2 * 60 = 2 minutes
 
     # Update the Facebook bio with the final formatted message.
     bio_message = format_message(config.bio_msg, static_placeholders)
     if bio_message:
         facebook_client.update_bio(bio_message)
 
-    add_summary_row("Final status", "Completed successfully", Status.SUCCESS)
     end_summary()
 
     
