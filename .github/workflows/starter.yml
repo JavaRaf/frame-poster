@@ -53,6 +53,15 @@ jobs:
       # -------------------------------------------------------------
       # AUTO COMMIT (GitHub Actions)
       # -------------------------------------------------------------
+      - name: Debug - Show git status
+        run: |
+          echo "=== Git Status ==="
+          git status
+          echo "=== Git Diff (configs.yml) ==="
+          git diff configs.yml || true
+          echo "=== Tracked log files ==="
+          ls -la logs/ || true
+
       - name: Commit changes
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
