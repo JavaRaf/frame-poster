@@ -66,8 +66,5 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "chore: update"
-          file_pattern: |
-            logs/app.log
-            logs/facebook.log
-            configs.yml
+          file_pattern: "logs/* configs.yml"
           
