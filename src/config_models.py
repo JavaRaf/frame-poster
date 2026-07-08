@@ -83,6 +83,7 @@ class AppConfig(BaseModel):
     in_progress: InProgressConfig = InProgressConfig()
     episodes: dict[int, EpisodeConfig] = {}
     posting: PostingConfig = PostingConfig()
+    timezone: str = "UTC"
     post_msg: str = ""
     bio_msg: str = ""
 

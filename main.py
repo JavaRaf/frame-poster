@@ -7,7 +7,7 @@ from src.console import console, print_header, print_separator
 from src.facebook import FacebookAPI
 from src.frame_utils import frame_to_timestamp, get_frame
 from src.load_configs import load_and_validate, save_configs
-from src.logger import get_logger, log_post_id
+from src.logger import get_logger, log_post_id, set_log_timezone
 from src.message import format_message
 from src.poster import post_frame, post_random_crop, post_subtitles
 from src.settings import CONFIGS_PATH, FB_TOKEN_ENV_VAR
@@ -40,6 +40,7 @@ def main(argv: list[str] | None = None) -> None:
 
     config_path = Path(args.config_file) if args.config_file else CONFIGS_PATH
     config = load_and_validate(config_path)
+    set_log_timezone(config.timezone)
 
     facebook_client = FacebookAPI(
         api_version=config.facebook.api_version,
@@ -117,7 +118,7 @@ def main(argv: list[str] | None = None) -> None:
         facebook_client.repost_frame_to_album(message, frame_path, episode_config.album_id, current_config_snapshot)
         post_subtitles(facebook_client, post_id, frame_number, config.in_progress.episode, subtitle_text, current_config_snapshot)
         post_random_crop(facebook_client, post_id, frame_path, current_config_snapshot)
-        log_post_id(post_id, frame_number, config.in_progress.episode)
+        log_post_id(post_id, frame_number, config.in_progress.episode, config.in_progress.season, config.timezone)
 
         print_separator()
         time.sleep(config.posting.posting_interval * 5)  # 2 * 60 = 2 minutes

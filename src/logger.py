@@ -7,6 +7,12 @@ from pathlib import Path
 import re
 
 from src.settings import FB_LOG_PATH
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+FB_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+FB_LOG_PATH.touch(exist_ok=True)
+
 
 
 # Constants
@@ -15,13 +21,28 @@ LOGS_DIR.mkdir(exist_ok=True)
 
 LOG_FILE = LOGS_DIR / "app.log"
 LOG_FILE.touch(exist_ok=True)
-LOG_FORMAT = "%(asctime)s | %(levelname)-5s  %(module)-2s -> %(funcName)-2s -> line %(lineno)d | %(message)s"
+LOG_FORMAT = "[%(asctime)s] [%(levelname)s] [%(module)s:%(funcName)s:%(lineno)d] %(message)s"
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 # Patterns for sensitive data sanitization
 SENSITIVE_PATTERNS = [
     (r"(?i)(access_token(?:%3D|=))([^&\s]+)", "access_token=***"),
 ]
+
+# Timezone used by formatter.formatTime() — set via set_log_timezone().
+_tz: ZoneInfo = ZoneInfo("UTC")
+
+
+def set_log_timezone(tz_name: str) -> None:
+    """Update the timezone used for ``%(asctime)s`` in all log handlers.
+
+    Call this once after loading the configuration file.
+    """
+    global _tz
+    try:
+        _tz = ZoneInfo(tz_name)
+    except (ZoneInfoNotFoundError, KeyError):
+        _tz = ZoneInfo("UTC")
 
 
 def sanitize_log_message(message: str) -> str:
@@ -41,7 +62,14 @@ def sanitize_log_message(message: str) -> str:
 
 
 class SanitizingFormatter(logging.Formatter):
-    """Custom formatter that sanitizes sensitive information from log messages."""
+    """Custom formatter that sanitizes sensitive information from log messages
+    and uses the configured timezone for timestamps."""
+
+    def formatTime(self, record: logging.LogRecord, datefmt: str | None = None) -> str:
+        dt = datetime.fromtimestamp(record.created, tz=_tz)
+        if datefmt:
+            return dt.strftime(datefmt)
+        return dt.isoformat()
 
     def format(self, record: logging.LogRecord) -> str:
         # Resolve the final formatted string first (msg % args), then sanitize it.
@@ -82,23 +110,33 @@ def get_logger(name: str) -> logging.Logger:
 
 # ── Facebook post log ─────────────────────────────────────────────────
 
-FB_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-FB_LOG_PATH.touch(exist_ok=True)
 
 
-def log_post_id(post_id: str, frame: int, episode: int) -> None:
+
+def log_post_id(post_id: str, frame: int, episode: int, season: int, timezone: str) -> None:
     """Append a posted frame link to the Facebook log file.
 
     Args:
         post_id: The ID returned by the Facebook API.
         frame: The frame number that was posted.
-        episode: The episode number that was posted.
+        episode: The episode number.
+        season: The season number.
+        timezone: IANA timezone name (e.g. "America/Sao_Paulo").
     """
+
+    try:
+        tz = ZoneInfo(timezone)
+    except (ZoneInfoNotFoundError, KeyError):
+        tz = timezone.utc
+    timestamp = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S %Z")
+    entry = (
+        f"[{timestamp}] S{season:02d}E{episode:02d}"
+        f" | frame {frame}"
+        f" | https://facebook.com/{post_id}\n"
+    )
     try:
         with FB_LOG_PATH.open("a", encoding="utf-8") as f:
-            f.write(
-                f"frame {frame}, episode {episode} - https://facebook.com/{post_id}\n"
-            )
+            f.write(entry)
     except OSError as e:
         logger = get_logger(__name__)
         logger.error(
