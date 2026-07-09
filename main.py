@@ -5,7 +5,7 @@ from pathlib import Path
 from src.cli import parse_args
 from src.console import console, print_header, print_separator
 from src.facebook import FacebookAPI
-from src.frame_utils import frame_to_timestamp, get_frame
+from src.frame_utils import frame_to_timestamp, get_frame, end_episode_mov_next, update_config
 from src.load_configs import load_and_validate, save_configs
 from src.logger import get_logger, log_post_id, set_log_timezone
 from src.message import format_message
@@ -30,14 +30,6 @@ def main(argv: list[str] | None = None) -> None:
     start_summary()
     check_fb_token()
 
-    # Temporary client just for token validation (default api_version is fine).
-    if not FacebookAPI(access_token=args.fb_token).validate_token():
-        logger.error("Aborting run: Facebook token is invalid or missing.")
-        add_summary_row("Final status", "Aborted — invalid token", Status.ERROR)
-        end_summary()
-        return
-    # ────────────────────────────────────────────────────────────────────
-
     config_path = Path(args.config_file) if args.config_file else CONFIGS_PATH
     config = load_and_validate(config_path)
     set_log_timezone(config.timezone)
@@ -47,32 +39,36 @@ def main(argv: list[str] | None = None) -> None:
         access_token=args.fb_token,
     )
 
+    if not facebook_client.validate_token():
+        logger.error("Aborting run: Facebook token is invalid or missing.")
+        add_summary_row("Final status", "Aborted — invalid token", Status.ERROR)
+        end_summary()
+        return
+
     episode_config = config.episodes[config.in_progress.episode]
-    last_frame_to_post = config.in_progress.frame + config.posting.fph
+    start_frame = config.in_progress.next_frame or 1
+    last_frame = episode_config.max_frames + config.posting.fph + 1
 
     # Static placeholders that do not change between frames.
     static_placeholders = {
         "fph"                : config.posting.fph,
         "img_fps"            : episode_config.image_fps,
-        "episode_title"      : episode_config.title,
-        "episode_number"     : config.in_progress.episode,
         "max_frames"         : episode_config.max_frames,
         "season_number"      : config.in_progress.season,
-        "execution_interval" : get_workflow_interval_hours(),
+        "episode_title"      : episode_config.title,
+        "episode_number"     : config.in_progress.episode,
         "posting_interval"   : config.posting.posting_interval,
+        "execution_interval" : get_workflow_interval_hours(),
     }
 
-    for frame_number in range(config.in_progress.frame + 1, last_frame_to_post + 1):
+    for frame_number in range(start_frame, last_frame):
         # Move to the next episode when the current one has finished.
-        if frame_number > episode_config.max_frames:
+
+        if end_episode_mov_next(frame_number, episode_config.max_frames, config):
             logger.info(
                 "Episode %s completed; advancing to episode %s",
-                config.in_progress.episode,
-                config.in_progress.episode + 1,
+                config.in_progress.episode, config.in_progress.episode + 1,
             )
-            config.in_progress.episode += 1
-            config.in_progress.frame = 0
-            save_configs(config.model_dump(), config_path)
             break
 
         # Download the next frame image for posting.
@@ -94,6 +90,7 @@ def main(argv: list[str] | None = None) -> None:
             "timestamp"    : frame_to_timestamp(frame_number, episode_config.image_fps),
             "subtitles"    : subtitle_text or "",
         }
+
         message = format_message(config.post_msg, placeholders)
         if not message:
             logger.error(
@@ -109,15 +106,12 @@ def main(argv: list[str] | None = None) -> None:
                 frame_number, config.in_progress.episode,
             )
 
-        # Save progress after a successful post.
-        config.in_progress.frame = frame_number
-        current_config_snapshot = config.model_dump()
-        save_configs(current_config_snapshot, config_path)
+        update_config(frame_number, config, episode_config)
 
         # Run follow-up publishing actions after the main post.
-        facebook_client.repost_frame_to_album(message, frame_path, episode_config.album_id, current_config_snapshot)
-        post_subtitles(facebook_client, post_id, frame_number, config.in_progress.episode, subtitle_text, current_config_snapshot)
-        post_random_crop(facebook_client, post_id, frame_path, current_config_snapshot)
+        facebook_client.repost_frame_to_album(message, frame_path, episode_config.album_id, config.posting.reposting_in_album)
+        post_subtitles(facebook_client, post_id, frame_number, config.in_progress.episode, subtitle_text, config.posting.posting_subtitles)
+        post_random_crop(facebook_client, post_id, frame_path, config.posting.random_crop.enabled, config.posting.random_crop.min_size, config.posting.random_crop.max_size)
         log_post_id(post_id, frame_number, config.in_progress.episode, config.in_progress.season, config.timezone)
 
         print_separator()

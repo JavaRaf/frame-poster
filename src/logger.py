@@ -128,7 +128,7 @@ def log_post_id(post_id: str, frame: int, episode: int, season: int, timezone: s
         tz = ZoneInfo(timezone)
     except (ZoneInfoNotFoundError, KeyError):
         tz = timezone.utc
-    timestamp = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S %Z")
+    timestamp = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
     entry = (
         f"[{timestamp}] S{season:02d}E{episode:02d}"
         f" | frame {frame}"

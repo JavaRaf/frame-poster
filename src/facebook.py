@@ -185,16 +185,16 @@ class FacebookAPI:
         message: str = "",
         frame_path: Path = None,
         album_id: str = None,
-        configs: dict = None,
+        resposting: dict = None,
     ) -> str | None:
         """
         Repost a frame to an album.
         Returns the post ID if successful, otherwise returns None.
         """
 
-        reposting_to_album = configs.get("posting", {}).get("reposting_in_album", False)
+        
 
-        if not reposting_to_album or not album_id:
+        if not resposting or not album_id:
             return None
 
         if not str(album_id).isdigit():

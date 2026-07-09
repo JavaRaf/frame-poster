@@ -58,10 +58,10 @@ def post_subtitles(
     frame_number: int,
     episode_number: int,
     subtitle: str,
-    configs: dict,
+    posting_subtitles: bool,
 ) -> str | None:
     """Post the subtitles associated with the frame."""
-    if not configs.get("posting", {}).get("posting_subtitles", False):
+    if not posting_subtitles:
         return None
 
     if not subtitle:
@@ -87,14 +87,14 @@ def post_subtitles(
 
 
 def post_random_crop(
-    facebook: FacebookAPI, post_id: str, frame_path: Path, configs: dict
+    facebook: FacebookAPI, post_id: str, frame_path: Path, random_crop_enabled: bool, random_crop_min_size: int, random_crop_max_size: int
 ) -> str | None:
     """Post a random cropped frame."""
-    if not configs.get("posting", {}).get("random_crop", {}).get("enabled", False):
+    if not random_crop_enabled:
         return None
 
     try:
-        crop_path, crop_message = random_crop(frame_path, configs)
+        crop_path, crop_message = random_crop(frame_path, random_crop_min_size, random_crop_max_size)
         # random_crop already logged the reason; just bail silently here.
         if not (crop_path and crop_message):
             return None

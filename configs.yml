@@ -19,7 +19,7 @@ facebook:
 
 # timezone for log timestamps (IANA format)
 # Examples:
-#   "America/Sao_Paulo"      — Brasil (BRT, UTC-3)
+#   "America/Sao_Paulo"       — Brasil (BRT, UTC-3)
 #   "America/New_York"        — EUA Leste (EST/EDT, UTC-5/-4)
 #   "Europe/London"           — Reino Unido (GMT/BST, UTC+0/+1)
 #   "Asia/Tokyo"              — Japão (JST, UTC+9)
@@ -31,8 +31,8 @@ timezone: "America/Sao_Paulo"
 # progress of the posting (format: integer)
 in_progress:
   season: 1
-  episode: 2
-  frame: 0
+  episode: 3
+  next_frame: 3
 
 
 episodes:

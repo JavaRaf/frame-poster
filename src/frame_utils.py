@@ -5,9 +5,12 @@ from pathlib import Path
 import httpx
 from PIL import Image
 from tenacity import retry, stop_after_attempt, wait_exponential
+from src.config_models import EpisodeConfig, AppConfig
 
 from src.logger import get_logger
-from src.settings import IMAGES_DIR, TEMP_DIR
+from src.settings import IMAGES_DIR, TEMP_DIR, CONFIGS_PATH
+
+from src.load_configs import save_configs
 
 logger = get_logger(__name__)
 
@@ -23,6 +26,22 @@ client = httpx.Client(
         )
     },
 )
+
+
+def end_episode_mov_next(frame_number: int, max_frames: int, config: AppConfig) -> bool:
+        if not frame_number > max_frames:
+            return False
+        
+        config.in_progress.episode += 1
+        config.in_progress.next_frame = 0
+        save_configs(config.model_dump(), CONFIGS_PATH)
+        return True
+
+
+def update_config(frame_number: int, config: AppConfig, episode_config: EpisodeConfig) -> None:
+    config.in_progress.next_frame = frame_number
+    config_snapshot = config.model_dump()
+    save_configs(config_snapshot, CONFIGS_PATH)
 
 
 def timestamp_to_frame(timestamp: str, fps: int | float = 3.5) -> int | None:
@@ -136,12 +155,14 @@ def frame_to_timestamp(current_frame: int, img_fps: int | float) -> str | None:
         return None
 
 
-def random_crop(frame_path: Path, configs: dict) -> tuple[Path, str] | None:
+def random_crop(frame_path: Path, random_crop_min_size: int, random_crop_max_size: int) -> tuple[Path, str] | None:
     """
     Returns a random crop of the frame.
 
     Args:
         frame_path: Path to the frame image.
+        random_crop_min_size: Minimum size of the random crop.
+        random_crop_max_size: Maximum size of the random crop.
 
     Returns:
         tuple[Path, str]: Tuple containing the path to the cropped image and the crop coordinates.
@@ -161,12 +182,11 @@ def random_crop(frame_path: Path, configs: dict) -> tuple[Path, str] | None:
         # Keys describe the minimum and maximum *size* of the square crop in
         # pixels, not coordinates. The legacy ``min_x``/``min_y`` names are
         # still read as a fallback so older configs.yml files keep working.
-        random_crop_cfg = configs.get("posting", {}).get("random_crop", {})
         min_size = int(
-            random_crop_cfg.get("min_size", random_crop_cfg.get("min_x", 200))
+            random_crop_min_size
         )
         max_size = int(
-            random_crop_cfg.get("max_size", random_crop_cfg.get("min_y", 600))
+            random_crop_max_size
         )
 
         if min_size <= 0 or max_size <= 0:

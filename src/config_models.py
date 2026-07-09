@@ -30,7 +30,7 @@ class InProgressConfig(BaseModel):
 
     season: int = Field(default=1, ge=1)
     episode: int = Field(default=1, ge=1)
-    frame: int = Field(default=0, ge=0)
+    next_frame: int = Field(default=0, ge=0)
 
 
 class RandomCropConfig(BaseModel):
