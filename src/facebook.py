@@ -64,10 +64,10 @@ class FacebookAPI:
             return True
         except httpx.HTTPError as exc:
             logger.error(
-                "Facebook token invalid or expired: %s: %s", type(exc).__name__, exc
+                "Facebook token invalid or expired: status_code %s %s", response.status_code, exc
             )
             add_summary_row(
-                "FB_TOKEN", f"Token validation failed: {exc}", Status.ERROR
+                "FB_TOKEN", f"Token validation failed: status_code {response.status_code} {exc}", Status.ERROR
             )
             return False
 

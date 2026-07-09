@@ -9,9 +9,11 @@ It reads environment variables and generates a markdown table with the status of
 import os
 from enum import Enum
 from typing import Callable, Dict
+from pathlib import Path
 
 # GitHub Actions GITHUB_STEP_SUMMARY environment variable or default to summary.md for local testing
-SUMMARY_FILE = os.getenv("GITHUB_STEP_SUMMARY") or "summary.md"
+SUMMARY_ENV = os.getenv("GITHUB_STEP_SUMMARY")
+SUMMARY_LOCAL_FILE = Path("summary.md")
 
 
 class Status(Enum):
@@ -23,9 +25,14 @@ class Status(Enum):
 
 
 def write_summary(content: str) -> None:
-    if SUMMARY_FILE:
-        with open(SUMMARY_FILE, "a", encoding="utf-8") as f:
-            f.write(content + "\n")
+    """Write a line to the summary output.
+
+    When running inside GitHub Actions the content goes to the file pointed by
+    ``GITHUB_STEP_SUMMARY``.  Locally it falls back to ``summary.md``.
+    """
+    target = SUMMARY_ENV or SUMMARY_LOCAL_FILE
+    with open(target, "a", encoding="utf-8") as f:
+        f.write(content + "\n")
 
 
 def format_success(text: str) -> str:

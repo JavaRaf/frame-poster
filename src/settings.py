@@ -21,12 +21,11 @@ FB_LOG_PATH = Path(os.getenv("FB_LOG_PATH", LOG_DIR / "facebook.log"))
 IMAGES_DIR = Path(os.getenv("IMAGES_DIR", ROOT_DIR / "images"))
 TEMP_DIR = Path(os.getenv("TEMP_DIR", ROOT_DIR / "temp"))
 SUBTITLES_DIR = Path(os.getenv("SUBTITLES_DIR", ROOT_DIR / "subtitles"))
-GITHUB_SUMMARY_PATH: str | None = os.getenv("GITHUB_STEP_SUMMARY")
-LOCAL_SUMMARY_PATH = Path(os.getenv("SUMMARY_PATH", ROOT_DIR / "summary.md"))
 
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 TEMP_DIR.mkdir(parents=True, exist_ok=True)
+SUBTITLES_DIR.mkdir(parents=True, exist_ok=True)
 
 FB_TOKEN_ENV_VAR = "FB_TOKEN"
 

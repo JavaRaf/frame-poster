@@ -27,6 +27,7 @@ DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 # Patterns for sensitive data sanitization
 SENSITIVE_PATTERNS = [
     (r"(?i)(access_token(?:%3D|=))([^&\s]+)", "access_token=***"),
+    (r"(?i)(malformed\s+access\s+token)\s+[^\s\"]+", r"\1 ***"),
 ]
 
 # Timezone used by formatter.formatTime() — set via set_log_timezone().
@@ -123,12 +124,21 @@ def log_post_id(post_id: str, frame: int, episode: int, season: int, timezone: s
         season: The season number.
         timezone: IANA timezone name (e.g. "America/Sao_Paulo").
     """
+    if post_id is None:
+        logger = get_logger(__name__)
+        logger.error(
+            "Cannot log post ID: post_id is None for frame %s of episode %02d",
+            frame, episode,
+        )
+        return
 
     try:
         tz = ZoneInfo(timezone)
     except (ZoneInfoNotFoundError, KeyError):
         tz = timezone.utc
+
     timestamp = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
+
     entry = (
         f"[{timestamp}] S{season:02d}E{episode:02d}"
         f" | frame {frame}"
