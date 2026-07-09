@@ -50,33 +50,6 @@ STATUS_FORMATTERS: Dict[Status, Callable[[str], str]] = {
 }
 
 
-class SummaryTable:
-    """Context manager that opens/closes a summary table.
-
-    Prefer ``add_summary_row()`` (module-level) when you need to add rows
-    from multiple places without being inside a ``with`` block ― the context
-    manager is still useful for standalone scripts like ``variable_check.py``.
-    """
-
-    def __enter__(self):
-        write_summary('<h1 align="center">Resume of execution</h1>')
-        write_summary('<div align="center">')
-        write_summary("\n| Variable | Status |")
-        write_summary("|----------|---------|")
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        write_summary("</div>")
-        return False
-
-    def add_row(self, key: str, value: str, status: Status) -> None:
-        """Add a row to the table."""
-        add_summary_row(key, value, status)
-
-
-# ── Standalone function (works without the context manager) ─────────────
-
-
 def add_summary_row(key: str, value: str, status: Status) -> None:
     """Add a single row to the summary from *anywhere*.
 

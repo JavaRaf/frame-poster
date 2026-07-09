@@ -11,6 +11,8 @@ from tenacity import (
     wait_exponential,
 )
 
+from src.summary_step import Status, start_summary, add_summary_row, end_summary
+
 from src.logger import get_logger
 from src.settings import FB_TOKEN_ENV_VAR
 
@@ -43,18 +45,29 @@ class FacebookAPI:
         return {"Authorization": f"Bearer {self.access_token}"}
 
     def validate_token(self) -> bool:
-        """Return True only when the configured Facebook token is valid."""
+        """Validate the Facebook token and log the result to the summary table."""
+
+        start_summary()  # Ensure the summary is started before adding rows
+
         if not self.access_token:
             logger.error("%s is not defined in the environment", FB_TOKEN_ENV_VAR)
-            return False
+            add_summary_row("FB_TOKEN", "Token not found", Status.ERROR)
+            end_summary()
+            return False    
 
         try:
             response = self.client.get("/me", headers=self._auth_headers)
             response.raise_for_status()
+            add_summary_row(
+                "FB_TOKEN", "Token found and validated successfully", Status.SUCCESS
+            )
             return True
         except httpx.HTTPError as exc:
             logger.error(
-                "Facebook token validation failed: %s: %s", type(exc).__name__, exc
+                "Facebook token invalid or expired: %s: %s", type(exc).__name__, exc
+            )
+            add_summary_row(
+                "FB_TOKEN", f"Token validation failed: {exc}", Status.ERROR
             )
             return False
 

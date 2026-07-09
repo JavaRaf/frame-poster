@@ -3,16 +3,15 @@ import time
 from pathlib import Path
 
 from src.cli import parse_args
-from src.console import console, print_header, print_separator
+from src.console import print_header, print_separator
 from src.facebook import FacebookAPI
 from src.frame_utils import frame_to_timestamp, get_frame, end_episode_mov_next, update_config
-from src.load_configs import load_and_validate, save_configs
+from src.load_configs import load_and_validate
 from src.logger import get_logger, log_post_id, set_log_timezone
 from src.message import format_message
 from src.poster import post_frame, post_random_crop, post_subtitles
 from src.settings import CONFIGS_PATH, FB_TOKEN_ENV_VAR
 from src.subtitles import get_subtitle_for_frame
-from src.summary_step import Status, add_summary_row, start_summary, end_summary
 from src.workflow import get_workflow_interval_hours
 
 
@@ -33,13 +32,8 @@ def main(argv: list[str] | None = None) -> None:
         api_version=config.facebook.api_version,
         access_token=args.fb_token,
     )
-
-    if not facebook_client.validate_token():
-        logger.error("Aborting run: Facebook token is invalid or missing.")
-        start_summary()
-        add_summary_row("Final status", "Aborted — invalid token", Status.ERROR)
-        end_summary()
-        return
+    facebook_client.validate_token()
+  
 
     episode_config = config.episodes[config.in_progress.episode]
     start_frame = config.in_progress.next_frame or 1
