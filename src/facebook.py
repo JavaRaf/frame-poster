@@ -37,20 +37,19 @@ class FacebookAPI:
         token = token.strip().removeprefix("FB_TOKEN=")
         return token if token else None
 
+    @property
+    def _auth_headers(self) -> dict[str, str]:
+        """Authorization header used by all Graph API requests."""
+        return {"Authorization": f"Bearer {self.access_token}"}
+
     def validate_token(self) -> bool:
         """Return True only when the configured Facebook token is valid."""
-        token = self.access_token or os.getenv(
-            FB_TOKEN_ENV_VAR, ""
-        ).strip().removeprefix("FB_TOKEN=")
-        if not token:
+        if not self.access_token:
             logger.error("%s is not defined in the environment", FB_TOKEN_ENV_VAR)
             return False
 
         try:
-            response = self.client.get(
-                "/me",
-                headers={"Authorization": f"Bearer {token}"},
-            )
+            response = self.client.get("/me", headers=self._auth_headers)
             response.raise_for_status()
             return True
         except httpx.HTTPError as exc:
@@ -66,9 +65,8 @@ class FacebookAPI:
         reraise=True,
     )
     def _try_post(self, endpoint: str, params: dict, files: dict = None) -> str | None:
-        headers = {"Authorization": f"Bearer {self.access_token}"}
         response = self.client.post(
-            endpoint, params=params, files=files, headers=headers
+            endpoint, params=params, files=files, headers=self._auth_headers
         )
 
         if response.status_code == 200:
@@ -92,9 +90,9 @@ class FacebookAPI:
         If all attempts fail, only logs the error and returns None.
         """
         endpoint = (
-            f"{self.base_url}/{parent_id}/comments"
+            f"/{parent_id}/comments"
             if parent_id
-            else f"{self.base_url}/me/photos"
+            else "/me/photos"
         )
         params = {"message": message}
 
@@ -134,12 +132,11 @@ class FacebookAPI:
             logger.info("Bio message is empty, skipping bio update.")
             return True
 
-        endpoint = f"{self.base_url}/me"
+        endpoint = "/me"
         params = {"about": message}
-        headers = {"Authorization": f"Bearer {self.access_token}"}
 
         try:
-            response = self.client.post(endpoint, params=params, headers=headers)
+            response = self.client.post(endpoint, params=params, headers=self._auth_headers)
             if response.status_code == 200:
                 return True
             # Body typically contains the Graph API error message (e.g.
@@ -164,10 +161,9 @@ class FacebookAPI:
         """
 
         try:
-            endpoint = f"{self.base_url}/{album_id}"
+            endpoint = f"/{album_id}"
             params = {"fields": "name"}
-            headers = {"Authorization": f"Bearer {self.access_token}"}
-            response = self.client.get(endpoint, params=params, headers=headers)
+            response = self.client.get(endpoint, params=params, headers=self._auth_headers)
             if response.status_code == 200:
                 return response.json().get("name")
             logger.error(

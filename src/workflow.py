@@ -21,7 +21,7 @@ SECONDS_PER_HOUR = 3600
 
 
 @lru_cache(maxsize=32)
-def __read_cron_expression(file_path: str = WORKFLOW_PATH) -> str | None:
+def _read_cron_expression(file_path: str = WORKFLOW_PATH) -> str | None:
     """
     Reads and returns the cron expression from a GitHub Actions workflow file.
 
@@ -41,7 +41,7 @@ def __read_cron_expression(file_path: str = WORKFLOW_PATH) -> str | None:
 
 
 @lru_cache(maxsize=32)
-def __calc_average_run_interval(
+def _calc_average_run_interval(
     cron_expr: str, runs: int = DEFAULT_RUNS
 ) -> float | None:
     """
@@ -84,11 +84,11 @@ def get_workflow_interval_hours(file_path: str = WORKFLOW_PATH) -> str | None:
     Returns:
         The interval in hours as a string, or None if calculation fails.
     """
-    cron_expr = __read_cron_expression(file_path)
+    cron_expr = _read_cron_expression(file_path)
     if not cron_expr:
         return None
 
-    avg_seconds = __calc_average_run_interval(cron_expr)
+    avg_seconds = _calc_average_run_interval(cron_expr)
     if avg_seconds is None:
         return None
 

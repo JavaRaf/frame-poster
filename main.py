@@ -13,7 +13,6 @@ from src.poster import post_frame, post_random_crop, post_subtitles
 from src.settings import CONFIGS_PATH, FB_TOKEN_ENV_VAR
 from src.subtitles import get_subtitle_for_frame
 from src.summary_step import Status, add_summary_row, start_summary, end_summary
-from src.variable_check import check_fb_token
 from src.workflow import get_workflow_interval_hours
 
 
@@ -26,10 +25,6 @@ def main(argv: list[str] | None = None) -> None:
     if args.fb_token:
         os.environ[FB_TOKEN_ENV_VAR] = args.fb_token.strip()
 
-    # ── Summary table wraps the entire execution ───────────────────────
-    start_summary()
-    check_fb_token()
-
     config_path = Path(args.config_file) if args.config_file else CONFIGS_PATH
     config = load_and_validate(config_path)
     set_log_timezone(config.timezone)
@@ -41,6 +36,7 @@ def main(argv: list[str] | None = None) -> None:
 
     if not facebook_client.validate_token():
         logger.error("Aborting run: Facebook token is invalid or missing.")
+        start_summary()
         add_summary_row("Final status", "Aborted — invalid token", Status.ERROR)
         end_summary()
         return
