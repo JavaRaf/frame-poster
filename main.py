@@ -112,8 +112,6 @@ def main(argv: list[str] | None = None) -> None:
     if bio_message:
         facebook_client.update_bio(bio_message)
 
-    end_summary()
-
     
 
     
