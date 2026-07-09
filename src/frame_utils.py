@@ -307,11 +307,11 @@ def get_frame(
                 response.raise_for_status()
             return None
 
-        image_path = IMAGES_DIR / f"{episode_number:02d}" / f"{frame_number:04d}.jpg"
-        image_path.parent.mkdir(parents=True, exist_ok=True)
-        with image_path.open("wb") as f:
+        frame_path = IMAGES_DIR / f"{episode_number:02d}" / f"{frame_number:04d}.jpg"
+        frame_path.parent.mkdir(parents=True, exist_ok=True)
+        with frame_path.open("wb") as f:
             f.write(response.content)
-        return image_path
+        return frame_path
 
     except httpx.HTTPStatusError:
         # Already logged above; re-raise so tenacity can retry.

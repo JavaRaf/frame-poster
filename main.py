@@ -86,9 +86,9 @@ def main(argv: list[str] | None = None) -> None:
         # Build the dynamic placeholders and format the post message.
         placeholders = {
             **static_placeholders,
-            "frame_number" : frame_number,
             "timestamp"    : frame_to_timestamp(frame_number, episode_config.image_fps),
             "subtitles"    : subtitle_text or "",
+            "frame_number" : frame_number,
         }
 
         message = format_message(config.post_msg, placeholders)
