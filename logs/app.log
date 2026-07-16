@@ -194,3 +194,7 @@
 1 validation error for AppConfig
   Value error, in_progress.episode is set to 4, but no entry exists for episode 4 in the 'episodes:' section of configs.yml [type=value_error, input_value={'github': {'username': '...tion_interval} hours\n'}, input_type=CommentedMap]
     For further information visit https://errors.pydantic.dev/2.13/v/value_error
+[2026-07-16 02:23:47] [CRITICAL] [load_configs:load_and_validate:101] configs.yml validation failed:
+1 validation error for AppConfig
+  Value error, in_progress.episode is set to 4, but no entry exists for episode 4 in the 'episodes:' section of configs.yml [type=value_error, input_value={'github': {'username': '...tion_interval} hours\n'}, input_type=CommentedMap]
+    For further information visit https://errors.pydantic.dev/2.13/v/value_error
