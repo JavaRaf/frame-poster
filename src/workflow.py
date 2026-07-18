@@ -20,7 +20,7 @@ DEFAULT_RUNS = 20
 SECONDS_PER_HOUR = 3600
 
 
-@lru_cache(maxsize=32)
+@lru_cache(maxsize=1)
 def _read_cron_expression(file_path: str = WORKFLOW_PATH) -> str | None:
     """
     Reads and returns the cron expression from a GitHub Actions workflow file.
@@ -40,7 +40,7 @@ def _read_cron_expression(file_path: str = WORKFLOW_PATH) -> str | None:
         return None
 
 
-@lru_cache(maxsize=32)
+@lru_cache(maxsize=1)
 def _calc_average_run_interval(
     cron_expr: str, runs: int = DEFAULT_RUNS
 ) -> float | None:

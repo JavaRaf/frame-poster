@@ -18,9 +18,9 @@ FB_LOG_PATH.touch(exist_ok=True)
 # Constants
 LOGS_DIR = Path("logs")
 LOGS_DIR.mkdir(exist_ok=True)
-
 LOG_FILE = LOGS_DIR / "app.log"
 LOG_FILE.touch(exist_ok=True)
+
 LOG_FORMAT = "[%(asctime)s] [%(levelname)s] [%(module)s:%(funcName)s:%(lineno)d] %(message)s"
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
