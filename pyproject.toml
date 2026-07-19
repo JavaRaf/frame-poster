@@ -1,0 +1,32 @@
+[project]
+name = "frame-poster"
+version = "0.1.0"
+description = "Facebook frame poster application"
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic>=2.0,<3",
+    "ruamel.yaml==0.18.15",
+    "python-dotenv==1.1.1",
+    "langdetect==1.0.9",
+    "tenacity==9.1.2",
+    "httpx==0.28.1",
+    "Pillow==11.3.0",
+    "croniter==6.2.3",
+    "PyYAML==6.0.3",
+    "rich==14.1.0",
+    "tzdata==2026.2",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP"]
+ignore = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"

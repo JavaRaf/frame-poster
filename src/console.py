@@ -47,24 +47,33 @@ def print_leaf(message: str) -> None:
     console.print(f"  [bold magenta]└[/] {message}")
 
 
-def print_frame_posted(
-    season: int,
-    episode: int,
-    frame: int,
-    max_frames: int,
-) -> None:
-    """Print a styled table summarising a successfully posted frame."""
-    table = Table(
-        box=box.ROUNDED,
-        border_style="green",
-        show_header=False,
-        padding=(0, 1),
-    )
-    table.add_column("Key", style="bold cyan", no_wrap=True)
-    table.add_column("Value", style="white")
+class DynamicTable:
+    """A dynamically-built Rich table with key-value rows.
 
-    table.add_row("Season", str(season))
-    table.add_row("Episode", str(episode))
-    table.add_row("Frame", f"{frame} / {max_frames}")
+    Build rows incrementally via :meth:`add` and render with :meth:`print`.
+    Supports method chaining: ``DynamicTable().add("A","1").add("B","2").print()``.
+    """
 
-    console.print(table)
+    def __init__(
+        self,
+        border_style: str = "green",
+        key_style: str = "bold cyan",
+        value_style: str = "white",
+    ) -> None:
+        self._table = Table(
+            box=box.ROUNDED,
+            border_style=border_style,
+            show_header=False,
+            padding=(0, 1),
+        )
+        self._table.add_column("Key", style=key_style, no_wrap=True)
+        self._table.add_column("Value", style=value_style)
+
+    def add(self, key: str, value: str) -> "DynamicTable":
+        """Add a row and return *self* for method chaining."""
+        self._table.add_row(key, value)
+        return self
+
+    def print(self) -> None:
+        """Render the table to the terminal."""
+        console.print(self._table)

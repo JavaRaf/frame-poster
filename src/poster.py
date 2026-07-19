@@ -11,7 +11,7 @@ from time import sleep
 
 # Third party imports
 from src.facebook import FacebookAPI
-from src.console import print_frame_posted, print_info, print_leaf
+from src.console import DynamicTable
 from src.frame_utils import random_crop
 from src.logger import get_logger
 
@@ -30,11 +30,12 @@ def post_frame(
     try:
         post_id = facebook.post_frame(message, frame_path)
         if post_id:
-            print_frame_posted(
-                season=placeholders.get("season_number"),
-                episode=placeholders.get("episode_number"),
-                frame=placeholders.get("frame_number"),
-                max_frames=placeholders.get("max_frames"),
+            (
+                DynamicTable()
+                .add("Season", str(placeholders.get("season_number")))
+                .add("Episode", str(placeholders.get("episode_number")))
+                .add("Frame", f"{placeholders.get('frame_number')} / {placeholders.get('max_frames')}")
+                .print()
             )
             sleep(2)
             return post_id
@@ -71,7 +72,7 @@ def post_subtitles(
     try:
         subtitle_post_id = facebook.post_frame(subtitle, None, post_id)
         if subtitle_post_id:
-            print_info("Subtitle has been posted")
+            DynamicTable().add("Subtitle", "posted").print()
             sleep(2)
             return subtitle_post_id
         logger.error("Facebook API returned no post id for %s", context)
@@ -101,7 +102,7 @@ def post_random_crop(
 
         crop_post_id = facebook.post_frame(crop_message, crop_path, post_id)
         if crop_post_id:
-            print_leaf("Random Crop has been posted")
+            DynamicTable().add("Random Crop", "posted").print()
             sleep(2)
             return crop_post_id
         logger.error(
@@ -116,3 +117,21 @@ def post_random_crop(
             e,
         )
         return None
+
+
+def repost_frame_into_album(
+    facebook: FacebookAPI, message: str, frame_path: str, album_id: str, respost: bool
+) -> bool:
+    """Repost a frame into an album."""
+
+    response = facebook.repost_frame_to_album(message, frame_path, album_id, respost)
+
+    if response is None:
+        return False
+
+    (
+        DynamicTable()
+        .add("Repost", f'Album "{facebook.album_name(album_id)}"')
+        .add("Post ID", response)
+        .print()
+    )

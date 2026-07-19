@@ -9,9 +9,10 @@ from src.frame_utils import frame_to_timestamp, get_frame, end_episode_mov_next,
 from src.load_configs import load_and_validate
 from src.logger import get_logger, log_post_id, set_log_timezone
 from src.message import format_message
-from src.poster import post_frame, post_random_crop, post_subtitles
+from src.poster import post_frame, post_random_crop, post_subtitles, repost_frame_into_album
 from src.settings import CONFIGS_PATH, FB_TOKEN_ENV_VAR
 from src.subtitles import get_subtitle_for_frame
+from src.summary_step import Status, start_summary, add_summary_row, end_summary
 from src.workflow import get_workflow_interval_hours
 
 
@@ -24,7 +25,7 @@ def main(argv: list[str] | None = None) -> None:
     if args.fb_token:
         os.environ[FB_TOKEN_ENV_VAR] = args.fb_token.strip()
 
-    config_path = Path(args.config_file) if args.config_file else CONFIGS_PATH
+    config_path = Path(CONFIGS_PATH)
     config = load_and_validate(config_path)
     set_log_timezone(config.timezone)
 
@@ -32,7 +33,15 @@ def main(argv: list[str] | None = None) -> None:
         api_version=config.facebook.api_version,
         access_token=args.fb_token,
     )
-    facebook_client.validate_token()
+
+    start_summary()
+    valid, reason = facebook_client.validate_token()
+    if valid:
+        add_summary_row("FB_TOKEN", "Token found and validated successfully", Status.SUCCESS)
+    else:
+        add_summary_row("FB_TOKEN", f"Token validation failed: {reason}", Status.ERROR)
+        end_summary()
+        return
   
 
     episode_config = config.episodes[config.in_progress.episode]
@@ -98,14 +107,15 @@ def main(argv: list[str] | None = None) -> None:
 
         update_config(frame_number, config, episode_config)
 
-        # Run follow-up publishing actions after the main post.
-        facebook_client.repost_frame_to_album(message, frame_path, episode_config.album_id, config.posting.reposting_in_album)
+
+        #TODO: romover/diminuir a quantidade de parametros passados para a função.
+        repost_frame_into_album(facebook_client, message, frame_path, episode_config.album_id, config.posting.reposting_in_album)
         post_subtitles(facebook_client, post_id, frame_number, config.in_progress.episode, subtitle_text, config.posting.posting_subtitles)
         post_random_crop(facebook_client, post_id, frame_path, config.posting.random_crop.enabled, config.posting.random_crop.min_size, config.posting.random_crop.max_size)
         log_post_id(post_id, frame_number, config.in_progress.episode, config.in_progress.season, config.timezone)
 
         print_separator()
-        time.sleep(config.posting.posting_interval * 5)  # 2 * 60 = 2 minutes
+        time.sleep(config.posting.posting_interval * 5)  
 
     # Update the Facebook bio with the final formatted message.
     bio_message = format_message(config.bio_msg, static_placeholders)
