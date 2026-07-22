@@ -1,0 +1,102 @@
+# ======================================================================================================================
+# GitHub Repository Configuration
+# ======================================================================================================================
+# Frames are fetched from GitHub Raw content using the following URL pattern:
+# https://raw.githubusercontent.com/{username}/{repo}/{branch}/{episode}/{frame_number}.jpg
+#
+# Example:
+#   github_repo: "myuser/my-anime-frames/main"
+#   episode: "episode_name"
+#   frame: 5
+#   → https://raw.githubusercontent.com/myuser/my-anime-frames/main/episode_name/5.jpg
+#
+# Format: "username/repository/branch"
+#   - username: Your GitHub username
+#   - repository: Repository name containing the frames
+#   - branch: Branch name (e.g., main, master)
+#
+# Repository structure expected:
+#   username/
+#     repository/
+#       branch/
+#         episode_name/
+#           0001.jpg
+#           0002.jpg
+#           ...
+
+# ======================================================================================================================
+# Seasons Configuration
+# ======================================================================================================================
+# List of seasons with their episodes and metadata
+seasons:                                              # type: list of objects
+  - season: 1                                         # type: integer/string - Season number
+    episodes:                                         # type: list of objects - Episodes in this season
+      - episode: name                                 # type: string - Episode name (used for folder path in GitHub)
+        title: "Episode 01"                           # type: string - Episode title (used in post messages)
+        image_fps: 2                                  # type: integer - Frames per second of the source video
+        max_frames: 15                                # type: integer - Maximum number of frames to post from this episode
+        album_id: 703927706019990                     # type: integer - Facebook album ID for reposting frames
+        github_repo: "username/repo/branch"           # type: string - GitHub repo in format "username/repository/branch"
+
+# ======================================================================================================================
+# Progress Tracking
+# ======================================================================================================================
+# Stores the current posting progress to resume from the last posted frame
+progress:                                             # type: object
+  season: 1                                           # type: integer/string - Current season number
+  episode: 4                                          # type: integer/string - Current episode number/index
+  frame: 0                                            # type: integer - Current frame number (0 = not started, starts from 1)
+
+# ======================================================================================================================
+# Message Templates
+# ======================================================================================================================
+# Placeholders supported in templates:
+#   {season}          - The season number
+#   {episode}         - The episode number
+#   {frame_number}    - The current frame number
+#   {max_frames}      - The maximum frames in the episode
+#   {img_fps}         - The frames per second of the image/video
+#   {fph}             - The frames per hour posting rate
+#   {timestamp}       - The timestamp of the frame
+#   {subtitles}       - The subtitles of the frame
+#   {episode_title}   - The title of the episode
+#   {post_interval}   - The interval between posts in minutes
+#   {execution_interval} - The interval between script executions in hours
+
+TEMPLATE_POST_MSG: |                                  # type: string - Template for regular frame posts
+  Season {season}, Episode {episode}, Frame {frame_number} out of {max_frames}
+  timestamp: {timestamp}
+
+TEMPLATE_BIO_MSG: |                                   # type: string - Template for bio/description
+  Posting {fph} frames every {execution_interval} hours
+
+TEMPLATE_RANDOM_FRAME_MSG: |                          # type: string - Template for random frame posts
+  [Random] Frame
+
+  Season: {season}, Episode: {episode}, Frame: {frame_number}
+  Timestamp: {timestamp}
+
+# ======================================================================================================================
+# Posting Configuration
+# ======================================================================================================================
+posting:                                              # type: object
+  fph: 15                                             # type: integer - Frames posted per hour
+  post_interval: 2                                    # type: integer - Interval between posts in minutes (recommended: 2+)
+  subcomment: true                                    # type: boolean - Post subtitles in comments if available
+  album_repost: true                                  # type: boolean - Repost frames to Facebook album
+
+# ======================================================================================================================
+# Random Crop Configuration
+# ======================================================================================================================
+# Settings for random image cropping (optional feature)
+random_crop:                                          # type: object
+  enabled: true                                       # type: boolean - Enable random cropping for comments
+  min_size: 200                                       # type: integer - Minimum square crop size in pixels
+  max_size: 600                                       # type: integer - Maximum square crop size in pixels
+
+# ======================================================================================================================
+# API and System Configuration
+# ======================================================================================================================
+facebook_api_version: "v25.0"                         # type: string - Facebook Graph API version
+timezone: -3                                          # type: integer - Timezone offset in hours (default: UTC-0)
+# ======================================================================================================================

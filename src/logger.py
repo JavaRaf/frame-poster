@@ -6,12 +6,10 @@ import logging
 from pathlib import Path
 import re
 
-from src.settings import FB_LOG_PATH
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-FB_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-FB_LOG_PATH.touch(exist_ok=True)
+import facebook
 
 
 
@@ -19,7 +17,10 @@ FB_LOG_PATH.touch(exist_ok=True)
 LOGS_DIR = Path("logs")
 LOGS_DIR.mkdir(exist_ok=True)
 LOG_FILE = LOGS_DIR / "app.log"
+FACEBOOK_LOG = LOGS_DIR / "facebook.log"
+
 LOG_FILE.touch(exist_ok=True)
+FACEBOOK_LOG.touch(exist_ok=True)
 
 LOG_FORMAT = "[%(asctime)s] [%(levelname)s] [%(module)s:%(funcName)s:%(lineno)d] %(message)s"
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
@@ -111,7 +112,7 @@ def get_logger(name: str) -> logging.Logger:
 
 # ── Facebook post log ─────────────────────────────────────────────────
 
-
+logger = get_logger(__name__)
 
 
 def log_post_id(post_id: str, frame: int, episode: int, season: int, timezone: str) -> None:
@@ -124,8 +125,7 @@ def log_post_id(post_id: str, frame: int, episode: int, season: int, timezone: s
         season: The season number.
         timezone: IANA timezone name (e.g. "America/Sao_Paulo").
     """
-    if post_id is None:
-        logger = get_logger(__name__)
+    if not post_id:
         logger.error(
             "Cannot log post ID: post_id is None for frame %s of episode %02d",
             frame, episode,
@@ -145,10 +145,9 @@ def log_post_id(post_id: str, frame: int, episode: int, season: int, timezone: s
         f" | https://facebook.com/{post_id}\n"
     )
     try:
-        with FB_LOG_PATH.open("a", encoding="utf-8") as f:
+        with FACEBOOK_LOG.open("a", encoding="utf-8") as f:
             f.write(entry)
     except OSError as e:
-        logger = get_logger(__name__)
         logger.error(
             "Failed to append to fb log (%s): %s", FB_LOG_PATH, e, exc_info=True
         )

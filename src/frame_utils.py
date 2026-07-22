@@ -28,20 +28,6 @@ client = httpx.Client(
 )
 
 
-def end_episode_mov_next(frame_number: int, max_frames: int, config: AppConfig) -> bool:
-        if not frame_number > max_frames:
-            return False
-        
-        config.in_progress.episode += 1
-        config.in_progress.next_frame = 0
-        save_configs(config.model_dump(), CONFIGS_PATH)
-        return True
-
-
-def update_config(frame_number: int, config: AppConfig, episode_config: EpisodeConfig) -> None:
-    config.in_progress.next_frame = frame_number
-    config_snapshot = config.model_dump()
-    save_configs(config_snapshot, CONFIGS_PATH)
 
 
 def timestamp_to_frame(timestamp: str, fps: int | float = 3.5) -> int | None:
