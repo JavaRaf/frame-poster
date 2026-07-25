@@ -13,7 +13,6 @@ from tenacity import (
 )
 
 from src.logger import get_logger
-from src.settings import FB_TOKEN_ENV_VAR
 
 logger = get_logger(__name__)
 
@@ -46,7 +45,7 @@ class FacebookGraphAPI:
         self._album_name_cache_lock = Lock()
 
         if not self.access_token:
-            logger.error("%s is not defined or is invalid", FB_TOKEN_ENV_VAR)
+            logger.error("Facebook access token is not defined")
 
     def __enter__(self) -> "FacebookGraphAPI":
         return self
@@ -84,7 +83,7 @@ class FacebookGraphAPI:
             (False, reason) when the token is missing or the call fails.
         """
         if not self.access_token:
-            reason = f"{FB_TOKEN_ENV_VAR} is not defined in the environment"
+            reason = "Facebook access token is not defined"
             logger.error("%s", reason)
             return False, reason
 
@@ -262,6 +261,10 @@ class FacebookGraphAPI:
         if not message:
             logger.info("Bio message is empty, skipping update.")
             return True
+
+        if len(message) > 101:
+            logger.warning("Bio message is too long, truncating to 101 characters.", exc_info=True)
+            message = message[:101]
 
         try:
             response = self.client.post("/me", params={"about": message}, headers=self._headers)

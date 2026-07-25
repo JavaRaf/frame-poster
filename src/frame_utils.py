@@ -1,16 +1,13 @@
-import random
+from random import randint
 import time
 from pathlib import Path
 
 import httpx
 from PIL import Image
 from tenacity import retry, stop_after_attempt, wait_exponential
-from src.config_models import EpisodeConfig, AppConfig
 
 from src.logger import get_logger
-from src.settings import IMAGES_DIR, TEMP_DIR, CONFIGS_PATH
 
-from src.load_configs import save_configs
 
 logger = get_logger(__name__)
 
@@ -26,8 +23,6 @@ client = httpx.Client(
         )
     },
 )
-
-
 
 
 def timestamp_to_frame(timestamp: str, fps: int | float = 3.5) -> int | None:
@@ -46,10 +41,7 @@ def timestamp_to_frame(timestamp: str, fps: int | float = 3.5) -> int | None:
         hours, minutes, seconds = timestamp.split(":")
         seconds, centiseconds = seconds.split(".")
         total_seconds = (
-            int(hours) * 3600
-            + int(minutes) * 60
-            + int(seconds)
-            + int(centiseconds) / 100
+            int(hours) * 3600 + int(minutes) * 60 + int(seconds) + int(centiseconds) / 100
         )
         return round(total_seconds * fps)
     except (ValueError, AttributeError) as error:
@@ -84,10 +76,7 @@ def timestamp_to_seconds(time_str: str, format: str = "ass") -> float | None:
             hours, minutes, rest = time_str.split(":")
             seconds, millis = rest.split(",")
             total_seconds = (
-                int(hours) * 3600
-                + int(minutes) * 60
-                + int(seconds)
-                + int(millis) / 1000.0
+                int(hours) * 3600 + int(minutes) * 60 + int(seconds) + int(millis) / 1000.0
             )
             return total_seconds
         except (ValueError, AttributeError) as error:
@@ -141,7 +130,7 @@ def frame_to_timestamp(current_frame: int, img_fps: int | float) -> str | None:
         return None
 
 
-def random_crop(frame_path: Path, random_crop_min_size: int, random_crop_max_size: int) -> tuple[Path, str] | None:
+def random_crop(frame_path: Path, random_crop: dict) -> tuple[Path, str] | None:
     """
     Returns a random crop of the frame.
 
@@ -153,12 +142,6 @@ def random_crop(frame_path: Path, random_crop_min_size: int, random_crop_max_siz
     Returns:
         tuple[Path, str]: Tuple containing the path to the cropped image and the crop coordinates.
     """
-    # These are type/state validations (not caught exceptions), so no exc_info.
-    if not isinstance(frame_path, Path):
-        logger.error(
-            "random_crop: frame_path must be a Path, got %s", type(frame_path).__name__
-        )
-        return None, None
 
     if not frame_path.is_file():
         logger.error("random_crop: file not found at %s", frame_path)
@@ -168,12 +151,8 @@ def random_crop(frame_path: Path, random_crop_min_size: int, random_crop_max_siz
         # Keys describe the minimum and maximum *size* of the square crop in
         # pixels, not coordinates. The legacy ``min_x``/``min_y`` names are
         # still read as a fallback so older configs.yml files keep working.
-        min_size = int(
-            random_crop_min_size
-        )
-        max_size = int(
-            random_crop_max_size
-        )
+        min_size = int(random_crop.get("random_crop_min_size", 200))
+        max_size = int(random_crop.get("random_crop_max_size", 600))
 
         if min_size <= 0 or max_size <= 0:
             logger.error(
@@ -208,23 +187,21 @@ def random_crop(frame_path: Path, random_crop_min_size: int, random_crop_max_siz
                 return None, None
 
             # Generate random crop coordinates. eg: 0px... 1920px
-            crop_x = random.randint(0, image_width - crop_width)
-            crop_y = random.randint(0, image_height - crop_height)
+            cordinate_x = randint(0, image_width - crop_width)
+            cordinate_y = randint(0, image_height - crop_height)
 
             # Crop image
             cropped_img = img.crop(
-                (crop_x, crop_y, crop_x + crop_width, crop_y + crop_height)
+                (cordinate_x, cordinate_y, cordinate_x + crop_width, cordinate_y + crop_height)
             )
 
             # Save the cropped image inside the shared temp folder.
-            temp_dir = TEMP_DIR
+            temp_dir = Path() / "./temp"
             temp_dir.mkdir(parents=True, exist_ok=True)
             cropped_path = temp_dir / f"{frame_path.stem}_crop{frame_path.suffix}"
             cropped_img.save(cropped_path)
             logger.info("Random crop saved to %s", cropped_path)
-            message = (
-                f"Random Crop. [{crop_width}x{crop_height} ~ X: {crop_x}, Y: {crop_y}]"
-            )
+            message = f"Random Crop. width[{crop_width}] height[{crop_height}] ~ cordinate_x: {cordinate_x}, cordinate_y: {cordinate_y}"
 
             return cropped_path, message
 
@@ -240,9 +217,7 @@ def random_crop(frame_path: Path, random_crop_min_size: int, random_crop_max_siz
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
-def get_frame(
-    frame_number: int, episode_number: int, github_expects: dict
-) -> Path | None:
+def get_frame(frame_number: int, episode_number: int, github_expects: dict) -> Path | None:
     """Download the frame from the github repository. and save it locally.
 
     Args:

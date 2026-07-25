@@ -84,4 +84,3 @@ def start_summary() -> None:
 def end_summary() -> None:
     """Close the summary table — call once at the end."""
     write_summary("</div>")
-

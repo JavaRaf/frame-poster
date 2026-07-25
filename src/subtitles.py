@@ -276,8 +276,7 @@ def get_subtitle_for_frame(
 
     if not isinstance(frame_number, int) or not isinstance(episode_number, int):
         logger.error(
-            "get_subtitle_for_frame: frame_number and episode_number must be int, "
-            "got %s and %s",
+            "get_subtitle_for_frame: frame_number and episode_number must be int, got %s and %s",
             type(frame_number).__name__,
             type(episode_number).__name__,
         )
@@ -304,14 +303,10 @@ def get_subtitle_for_frame(
         match subtitle_file.suffix:
             case ".ass":
                 ass_subtitles_data = parse_ass_file(subtitle_file)
-                formatted_message = __ass_format(
-                    frame_number, image_fps, ass_subtitles_data
-                )
+                formatted_message = __ass_format(frame_number, image_fps, ass_subtitles_data)
             case ".srt":
                 srt_subtitles_data = parse_srt_file(subtitle_file)
-                formatted_message = __srt_format(
-                    frame_number, image_fps, srt_subtitles_data
-                )
+                formatted_message = __srt_format(frame_number, image_fps, srt_subtitles_data)
             case _:
                 formatted_message = None
 

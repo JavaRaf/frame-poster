@@ -1,21 +1,20 @@
 """
-Logger module for application logging
+Logger module for application logging.
 """
 
 import logging
-from pathlib import Path
 import re
-
-from datetime import datetime, timezone
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
-
-import facebook
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 
-
+# ─────────────────────────────────────────────────────────────────────────────
 # Constants
-LOGS_DIR = Path("logs")
+# ─────────────────────────────────────────────────────────────────────────────
+
+LOGS_DIR = Path() / "logs"
 LOGS_DIR.mkdir(exist_ok=True)
+
 LOG_FILE = LOGS_DIR / "app.log"
 FACEBOOK_LOG = LOGS_DIR / "facebook.log"
 
@@ -23,28 +22,53 @@ LOG_FILE.touch(exist_ok=True)
 FACEBOOK_LOG.touch(exist_ok=True)
 
 LOG_FORMAT = "[%(asctime)s] [%(levelname)s] [%(module)s:%(funcName)s:%(lineno)d] %(message)s"
+
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
-# Patterns for sensitive data sanitization
-SENSITIVE_PATTERNS = [
-    (r"(?i)(access_token(?:%3D|=))([^&\s]+)", "access_token=***"),
-    (r"(?i)(malformed\s+access\s+token)\s+[^\s\"]+", r"\1 ***"),
-]
 
-# Timezone used by formatter.formatTime() — set via set_log_timezone().
-_tz: ZoneInfo = ZoneInfo("UTC")
+# ─────────────────────────────────────────────────────────────────────────────
+# Timezone configuration
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Default timezone: UTC-3
+_log_timezone = timezone(timedelta(hours=-3))
 
 
-def set_log_timezone(tz_name: str) -> None:
-    """Update the timezone used for ``%(asctime)s`` in all log handlers.
-
-    Call this once after loading the configuration file.
+def set_timezone_offset(offset_hours: int = 0) -> None:
     """
-    global _tz
-    try:
-        _tz = ZoneInfo(tz_name)
-    except (ZoneInfoNotFoundError, KeyError):
-        _tz = ZoneInfo("UTC")
+    Sets the global UTC offset used by the logging system.
+
+    This function should be called once when the application starts,
+    before creating the application loggers.
+
+    Args:
+        offset_hours:
+            Offset from UTC in hours.
+
+            Examples:
+                -3 -> UTC-3
+                 0 -> UTC
+                 3 -> UTC+3
+    """
+    global _log_timezone
+
+    _log_timezone = timezone(timedelta(hours=offset_hours))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Sensitive data sanitization
+# ─────────────────────────────────────────────────────────────────────────────
+
+SENSITIVE_PATTERNS = [
+    (
+        r"(?i)(access_token(?:%3D|=))([^&\s]+)",
+        "access_token=***",
+    ),
+    (
+        r"(?i)(malformed\s+access\s+token)\s+[^\s\"]+",
+        r"\1 ***",
+    ),
+]
 
 
 def sanitize_log_message(message: str) -> str:
@@ -52,102 +76,192 @@ def sanitize_log_message(message: str) -> str:
     Sanitizes sensitive information from log messages.
 
     Args:
-        message: The original log message.
+        message:
+            The original log message.
 
     Returns:
         The sanitized message with sensitive data masked.
     """
     sanitized = message
+
     for pattern, replacement in SENSITIVE_PATTERNS:
-        sanitized = re.sub(pattern, replacement, sanitized, flags=re.IGNORECASE)
+        sanitized = re.sub(
+            pattern,
+            replacement,
+            sanitized,
+            flags=re.IGNORECASE,
+        )
+
     return sanitized
 
 
-class SanitizingFormatter(logging.Formatter):
-    """Custom formatter that sanitizes sensitive information from log messages
-    and uses the configured timezone for timestamps."""
+# ─────────────────────────────────────────────────────────────────────────────
+# Formatter
+# ─────────────────────────────────────────────────────────────────────────────
 
-    def formatTime(self, record: logging.LogRecord, datefmt: str | None = None) -> str:
-        dt = datetime.fromtimestamp(record.created, tz=_tz)
+
+class SanitizingFormatter(logging.Formatter):
+    """
+    Custom formatter that:
+
+    - Sanitizes sensitive information from log messages.
+    - Formats timestamps using the globally configured UTC offset.
+    """
+
+    def formatTime(
+        self,
+        record: logging.LogRecord,
+        datefmt: str | None = None,
+    ) -> str:
+        """
+        Formats the log record timestamp using the configured UTC offset.
+        """
+        dt = datetime.fromtimestamp(
+            record.created,
+            tz=_log_timezone,
+        )
+
         if datefmt:
             return dt.strftime(datefmt)
+
         return dt.isoformat()
 
-    def format(self, record: logging.LogRecord) -> str:
-        # Resolve the final formatted string first (msg % args), then sanitize it.
-        # Clear args afterward so super().format() doesn't try to format again
-        # and crash with "not all arguments converted during string formatting".
+    def format(
+        self,
+        record: logging.LogRecord,
+    ) -> str:
+        """
+        Sanitizes the final formatted log message.
+        """
+        # Resolve the final message first.
         original_message = record.getMessage()
+
+        # Sanitize the resolved message.
         record.msg = sanitize_log_message(original_message)
+
+        # Prevent logging.Formatter from trying to format
+        # the arguments a second time.
         record.args = None
+
         return super().format(record)
 
 
-def get_logger(name: str) -> logging.Logger:
+# ─────────────────────────────────────────────────────────────────────────────
+# Logger configuration
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def get_logger(
+    name: str,
+) -> logging.Logger:
     """
-    Configures and returns a logger with sanitization for sensitive data.
+    Configures and returns a logger with sanitization.
+
+    The logger uses the globally configured timezone offset.
 
     Args:
-        name: Logger name (usually __name__)
+        name:
+            Logger name, usually __name__.
 
     Returns:
-        Configured logger instance with sanitizing formatter.
+        Configured logger instance.
     """
-    # Create formatter with sanitization
-    formatter = SanitizingFormatter(LOG_FORMAT, DATE_FORMAT)
+
+    formatter = SanitizingFormatter(
+        LOG_FORMAT,
+        DATE_FORMAT,
+    )
 
     # File handler
-    file_handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
+    file_handler = logging.FileHandler(
+        LOG_FILE,
+        encoding="utf-8",
+    )
+
     file_handler.setFormatter(formatter)
 
     # Console handler
     console_handler = logging.StreamHandler()
+
     console_handler.setFormatter(formatter)
 
     # Configure logging
-    logging.basicConfig(level=logging.ERROR, handlers=[file_handler, console_handler])
+    logging.basicConfig(
+        level=logging.ERROR,
+        handlers=[
+            file_handler,
+            console_handler,
+        ],
+    )
 
     return logging.getLogger(name)
 
 
-# ── Facebook post log ─────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# Default module logger
+# ─────────────────────────────────────────────────────────────────────────────
 
 logger = get_logger(__name__)
 
 
-def log_post_id(post_id: str, frame: int, episode: int, season: int, timezone: str) -> None:
-    """Append a posted frame link to the Facebook log file.
+# ─────────────────────────────────────────────────────────────────────────────
+# Facebook post log
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def log_post_id(
+    post_id: str,
+    frame: int,
+    episode: int,
+    season: int,
+) -> None:
+    """
+    Appends a posted frame link to the Facebook log file.
+
+    The timestamp uses the globally configured UTC offset.
 
     Args:
-        post_id: The ID returned by the Facebook API.
-        frame: The frame number that was posted.
-        episode: The episode number.
-        season: The season number.
-        timezone: IANA timezone name (e.g. "America/Sao_Paulo").
+        post_id:
+            The ID returned by the Facebook API.
+
+        frame:
+            The frame number that was posted.
+
+        episode:
+            The episode number.
+
+        season:
+            The season number.
     """
+
     if not post_id:
         logger.error(
             "Cannot log post ID: post_id is None for frame %s of episode %02d",
-            frame, episode,
+            frame,
+            episode,
         )
         return
 
-    try:
-        tz = ZoneInfo(timezone)
-    except (ZoneInfoNotFoundError, KeyError):
-        tz = timezone.utc
-
-    timestamp = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
+    timestamp = datetime.now(_log_timezone).strftime("%Y-%m-%d %H:%M:%S")
 
     entry = (
-        f"[{timestamp}] S{season:02d}E{episode:02d}"
+        f"[{timestamp}] "
+        f"S{season:02d}E{episode:02d}"
         f" | frame {frame}"
         f" | https://facebook.com/{post_id}\n"
     )
+
     try:
-        with FACEBOOK_LOG.open("a", encoding="utf-8") as f:
+        with FACEBOOK_LOG.open(
+            "a",
+            encoding="utf-8",
+        ) as f:
             f.write(entry)
+
     except OSError as e:
         logger.error(
-            "Failed to append to fb log (%s): %s", FB_LOG_PATH, e, exc_info=True
+            "Failed to append to fb log (%s): %s",
+            FACEBOOK_LOG,
+            e,
+            exc_info=True,
         )
