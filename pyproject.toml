@@ -2,7 +2,7 @@
 name = "frame-poster"
 version = "0.1.0"
 description = "Facebook frame poster application"
-requires-python = ">=3.10"
+requires-python = "==3.13"
 dependencies = [
     "pydantic>=2.0,<3",
     "ruamel.yaml==0.18.15",
@@ -22,8 +22,14 @@ line-length = 100
 target-version = "py310"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "N", "UP"]
+select = ["E", "F", "W", "I", "N", "UP", "C4", "SIM", "B", "A"]
 ignore = []
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]  # Ignora imports não usados em __init__.py
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
 
 [tool.ruff.format]
 quote-style = "double"

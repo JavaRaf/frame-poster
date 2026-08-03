@@ -12,7 +12,7 @@ yaml.indent(
     offset=2,
 )
 
-config_path = Path() / "config.yml"
+CONFIG_PATH = Path() / "config.yml"
 
 
 def load_configs() -> CommentedMap:
@@ -23,10 +23,10 @@ def load_configs() -> CommentedMap:
         CommentedMap: The configuration data loaded from the YAML file with comments preserved
     """
     try:
-        with open(config_path, "r", encoding="utf-8") as file:
+        with open(CONFIG_PATH, "r", encoding="utf-8") as file:
             return yaml.load(file)
     except (Exception, OSError) as e:
-        print(f"Error loading config file {config_path}: {e}")
+        print(f"Error loading config file {CONFIG_PATH}: {e}")
         return {}
 
 
@@ -56,7 +56,7 @@ def save_configs(config: CommentedMap) -> None:
         config: The CommentedMap configuration data to save
     """
     try:
-        with open(config_path, "w", encoding="utf-8") as file:
+        with open(CONFIG_PATH, "w", encoding="utf-8") as file:
             yaml.dump(config, file)
     except (Exception, OSError) as e:
-        print(f"Error saving config file {config_path}: {e}")
+        print(f"Error saving config file {CONFIG_PATH}: {e}")

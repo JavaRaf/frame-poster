@@ -31,7 +31,7 @@
 seasons:                                              # type: list of objects 
   - season: 1                                         # type: integer | string - Season number
     episodes:                                         # type: list of objects - Episodes in this season
-      - episode: "name"                               # type: number | string - Episode name (used for folder path in GitHub) (need matching folder name in GitHub repo) (epiosode name can be a number or a string)
+      - episode: 1                                    # type: number | string - Episode name (used for folder path in GitHub) (need matching folder name in GitHub repo) (epiosode name can be a number or a string)
         title: "Episode 01"                           # type: string - Episode title (used in post messages) (optional)
         image_fps: 2                                  # type: integer - Frames per second of the source video (needed for proper timing subtitles)
         max_frames: 15                                # type: integer - Maximum number of frames obtained from the video after cutted
@@ -46,7 +46,7 @@ seasons:                                              # type: list of objects
 # Stores the current posting progress to resume from the last posted frame
 progress:                                             # type: object
   season: 1                                           # type: integer | string - Current season number
-  episode: 4                                          # type: integer | string - Current episode number/index
+  episode: 1                                          # type: integer | string - Current episode number/index
   frame: 0                                            # type: integer - Current frame number (0 = not started, starts from 1)
 
 # ======================================================================================================================
