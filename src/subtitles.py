@@ -146,7 +146,7 @@ def _find_subtext(frame_number: int, img_fps: float, dialogues_data: list[dict])
 
 
 def get_subtitle(
-    season: int | str, episode: int | str, frame_number: int, img_fps: float
+    season: int | str, episode: int | str, frame_number: int, img_fps: float | None
 ) -> list[dict[str, str]] | None:
     """Return the subtitle language and text for the requested frame.
 
@@ -156,6 +156,10 @@ def get_subtitle(
     folder = SUBTITLES_DIR / f"{season}" / f"{episode}"
     if not folder.exists() or not folder.is_dir():
         logger.warning("Subtitle folder %s does not exist or is not a directory", folder)
+        return None
+    
+    if not img_fps or img_fps <= 0:
+        logger.warning("Invalid img_fps value: %s. It must be a positive number.", img_fps)
         return None
     
     files = [f for f in folder.iterdir() if f.is_file()]
@@ -182,6 +186,10 @@ def get_subtitle(
             case ".srt":
                 # Placeholder for .srt parsing logic
                 pass
+
+            case _:
+                logger.warning("Unsupported subtitle file format: %s", file.suffix)
+                continue
 
     return subtitle_results 
 

@@ -1,42 +1,49 @@
 # ======================================================================================================================
 # GitHub Repository Configuration
 # ======================================================================================================================
-# Frames are fetched from GitHub Raw content using the following URL pattern:
-# https://raw.githubusercontent.com/{username}/{repo}/{branch}/{episode}/{frame_number}.jpg
+# Frames are downloaded from GitHub Raw. For each episode, set ``github_repo``
+# to the full path up to the folder that contains the episode folders.
+#
+# Expected format for ``github_repo``:
+#   "username/repository/branch/"
 #
 # Example:
-#   github_repo: "myuser/my-anime-frames/main"
-#   episode: "episode_name"
-#   frame: 5
-#   → https://raw.githubusercontent.com/myuser/my-anime-frames/main/episode_name/5.jpg
+#   github_repo: "JavaRaf/season2/master/"
 #
-# Format: "username/repository/branch"
-#   - username: Your GitHub username
-#   - repository: Repository name containing the frames
-#   - branch: Branch name (e.g., main, master)
+# The final URL is built like this:
+#   https://raw.githubusercontent.com/{github_repo}{episode}/{frame}.jpg
 #
-# Repository structure expected:
+# Concrete example:
+#   github_repo = "JavaRaf/season2/master/"
+#   episode     = 1   (folder "01")
+#   frame       = 5   (file "0005.jpg")
+#   → https://raw.githubusercontent.com/JavaRaf/season2/master/01/0005.jpg
+#
+# Expected repository structure:
 #   username/
 #     repository/
 #       branch/
-#         episode_name/
+#         01/
 #           0001.jpg
 #           0002.jpg
+#           ...
+#         02/
+#           0001.jpg
 #           ...
 
 # ======================================================================================================================
 # Seasons Configuration
 # ======================================================================================================================
 # List of seasons with their episodes and metadata 
-seasons:                                              # type: list of objects 
-  - season: 1                                         # type: integer | string - Season number
-    episodes:                                         # type: list of objects - Episodes in this season
-      - episode: 1                                    # type: number | string - Episode name (used for folder path in GitHub) (need matching folder name in GitHub repo) (epiosode name can be a number or a string)
-        title: "Episode 01"                           # type: string - Episode title (used in post messages) (optional)
-        image_fps: 2                                  # type: integer - Frames per second of the source video (needed for proper timing subtitles)
-        max_frames: 15                                # type: integer - Maximum number of frames obtained from the video after cutted
-        album_id: 703927706019990                     # type: integer - Facebook album ID for reposting frames in Facebook (optional)
-        github_repo: "username/repo/branch"           # type: string - GitHub repo in format "username/repository/branch"  (required)
+seasons:                                                # type: list of objects 
+  - season: 1                                           # type: integer | string - Season number
+    episodes:                                           # type: list of objects - Episodes in this season
+      - episode: 1                                      # type: number | string - Episode name (used for folder path in GitHub) (need matching folder name in GitHub repo) (epiosode name can be a number or a string)
+        title: "Episode 01"                             # type: string - Episode title (used in post messages) (optional)
+        image_fps: 2                                    # type: integer | float - Frames per second of the source video (needed for proper timing subtitles)
+        max_frames: 15                                  # type: integer - Maximum number of frames obtained from the video after cutted
+        album_id: 703927706019990                       # type: integer - Facebook album ID for reposting frames in Facebook (optional)
+        github_repo: "username/repo/branch/01"          # type: string - Github repository path for this episode (required)
 
     # add more episodes here
 
@@ -84,7 +91,7 @@ TEMPLATE_RANDOM_FRAME_MSG: |                          # type: string - Template 
 posting:                                              # type: object
   fph: 15                                             # type: integer - Frames posted per hour (for execution interval calculation)
   post_interval: 2                                    # type: integer - Interval between posts in minutes (recommended: 2+)
-  sub_comment: true                                    # type: boolean - Post subtitles in comments if available
+  sub_comment: true                                   # type: boolean - Post subtitles in comments if available (you can use subtitle in TEMPLATE_POST_MSG even if sub_comment is false)
   album_repost: true                                  # type: boolean - Repost frames to Facebook album
   random_post: false                                  # type: boolean - Post random frames insted sequencial
 

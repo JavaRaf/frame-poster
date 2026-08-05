@@ -11,7 +11,7 @@ __pycache__/
 .vscode/
 .env
 test.py
-images/
+frames/
 temp/
 fixs.txt
 .ruff_cache/

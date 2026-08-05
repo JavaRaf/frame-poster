@@ -12,20 +12,11 @@ from src.logger import get_logger
 logger = get_logger(__name__)
 
 
-client = httpx.Client(
-    timeout=httpx.Timeout(30, connect=10),
-    follow_redirects=True,
-    headers={
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/135.0.0.0 Safari/537.36"
-        )
-    },
-)
+FRAMES_DIR = Path() / "frames"
+FRAMES_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def timestamp_to_frame(timestamp: str, fps: int | float = 3.5) -> int | None:
+def _timestamp_to_frame(timestamp: str, fps: int | float = 3.5) -> int | None:
     """
     Converts a timestamp (H:MM:SS.CC) from .ass subtitle format to a frame number.
     Example: "0:01:02.50" → 1 minute, 2.5 seconds → calculated frame.
@@ -89,7 +80,7 @@ def timestamp_to_seconds(time_str: str, format: str = "ass") -> float | None:
         return None
 
 
-def frame_to_timestamp(current_frame: int, img_fps: int | float) -> str | None:
+def _frame_to_timestamp(current_frame: int, img_fps: int | float) -> str | None:
     """Converts frame number to timestamp in .ass format (H:MM:SS.CC).
 
     Args:
@@ -216,72 +207,110 @@ def random_crop(frame_path: Path, random_crop: dict) -> tuple[Path, str] | None:
         return None, None
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
-def get_frame(frame_number: int, episode_number: int, github_expects: dict) -> Path | None:
-    """Download the frame from the github repository. and save it locally.
+def _fall_back(url: str) -> str:
+    """Generate a fallback URL using images.weserv.nl proxy.
 
     Args:
-        frame_number (int): The frame number to download.
-        episode_number (int): The episode number to download.
-        github_expects (dict): The github expects.
+        url: The original URL to proxy.
 
     Returns:
-        Path | None: The path to the downloaded frame, or None if error occurs.
+        str: The proxied URL.
     """
+    return f"https://images.weserv.nl/?url={url}"
 
-    # Short label reused across log lines so every message identifies the frame.
-    frame_label = f"frame {frame_number} of episode {episode_number:02d}"
+def _build_url(github_repo: str, frame_number: int) -> str:
+    """Build the GitHub raw content URL for a frame.
 
-    username = github_expects.get("username")
-    repo = github_expects.get("repo")
-    branch = github_expects.get("branch")
-    if not all([username, repo, branch]):
-        logger.error(
-            "github config missing required keys (username/repo/branch): %r",
-            github_expects,
-        )
-        return None
+    Args:
+        github_repo: GitHub repository in format "username/repo/branch/" + folders and subfolders if needed.
+        frame_number: Frame number to fetch.
 
-    frame_url = (
-        f"https://raw.githubusercontent.com/{username}/{repo}/{branch}/"
-        f"{episode_number:02d}/{frame_number:04d}.jpg"
-    )
-    time.sleep(1)
+    Returns:
+        str: The complete URL to the frame image.
+    """
+    return "https://raw.githubusercontent.com/" + github_repo + "/" + f"{frame_number:04d}" + ".jpg"
 
+def _output_path(season_number: int, episode_number: int, frame_number: int) -> Path:
+    """Generate the local output path for a frame.
+
+    Args:
+        season_number: Season number.
+        episode_number: Episode number.
+        frame_number: Frame number.
+
+    Returns:
+        Path: The local path where the frame will be saved.
+    """
+    output_path = FRAMES_DIR / f"S-{season_number}" / f"E-{episode_number}" / f"{frame_number:04d}.jpg"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    return output_path
+
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+def download_frame(url: str, output_path: Path) -> None:
+    """Download a frame from URL and save it to the output path.
+
+    Uses retry logic with exponential backoff. Falls back to images.weserv.nl
+    proxy if rate limited (429 status code).
+
+    Args:
+        url: The URL to download the frame from.
+        output_path: The local path to save the downloaded frame.
+
+    Raises:
+        httpx.HTTPStatusError: If the download fails after retries.
+    """
     try:
-        response = client.get(frame_url)
-
-        # Raw.githubusercontent rate-limits aggressively; fall back to the
-        # weserv proxy which serves the same file from a different origin.
+        response = httpx.get(url)
         if response.status_code == 429:
-            proxy_url = f"https://images.weserv.nl/?url={frame_url}"
-            response = client.get(proxy_url)
-
-        if response.status_code >= 400:
-            logger.error(
-                "Failed to download %s: HTTP %s - %s",
-                frame_label,
-                response.status_code,
-                response.text[:200],
-            )
-            if response.status_code == 429:
-                response.raise_for_status()
-            return None
-
-        frame_path = IMAGES_DIR / f"{episode_number:02d}" / f"{frame_number:04d}.jpg"
-        frame_path.parent.mkdir(parents=True, exist_ok=True)
-        with frame_path.open("wb") as f:
+            response = httpx.get(_fall_back(url))
+        
+        response.raise_for_status()
+        
+        with open(output_path, "wb") as f:
             f.write(response.content)
-        return frame_path
 
-    except httpx.HTTPStatusError:
-        # Already logged above; re-raise so tenacity can retry.
+    except httpx.HTTPStatusError as e:
+        logger.error("Failed to download frame: %s", e)
         raise
-    except httpx.RequestError as e:
-        logger.error(
-            "Network error while downloading %s: %s: %s",
-            frame_label,
-            type(e).__name__,
-            e,
-        )
+
+    
+
+def get_frame(season_number: int, episode_number: int, frame_number: int, github_repo: str) -> Path | None:
+    """Download a frame from GitHub and save it locally.
+    
+    Returns Path if successful, None if failed.
+    """
+    if frame_number < 0:
+        logger.error("Invalid frame_number: %d (must be >= 0)", frame_number)
         return None
+    
+    if not github_repo:
+        logger.error("Empty github_repo provided")
+        return None
+    
+    url = _build_url(github_repo, frame_number)
+    output_path = _output_path(season_number, episode_number, frame_number)
+    
+    if output_path.exists():
+        logger.info("Frame already exists: %s", output_path)
+        return output_path
+    
+    try:
+        logger.info("Downloading frame %d from %s", frame_number, url)
+        download_frame(url, output_path)
+        
+        if not output_path.exists():
+            logger.error("Download failed: file not created at %s", output_path)
+            return None
+            
+        return output_path
+        
+    except Exception as e:
+        logger.error("Failed to get frame %d: %s", frame_number, e)
+        return None
+
+
+
+
+
+
