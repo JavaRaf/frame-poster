@@ -9,6 +9,10 @@ from src.load_configs import load_and_validate
 
 from dotenv import load_dotenv
 
+from pathlib import Path
+
+from src.subtitles import get_subtitle
+
 load_dotenv()
 
 
@@ -40,6 +44,7 @@ def sequencial_post(facebook_client: FacebookGraphAPI, config: CommentedMap):
     current_frame = max(1, progress_attr.get("frame", 0))  # ensure at least 1
     stop_frame: int = current_frame + fph  # calculate stop frame
     max_frames: int = episode_data.get("max_frames", 0)  # get max frames for this episode
+    img_fps: int | float = episode_data.get("img_fps", 3.5)  # get image fps for this episode
 
     for frame in range(current_frame, stop_frame + 1):
         if frame > max_frames:
@@ -49,6 +54,14 @@ def sequencial_post(facebook_client: FacebookGraphAPI, config: CommentedMap):
         # TODO:
         # 1. buscar frame
         # 2. legenda
+        subtitle_list = get_subtitle(
+            current_season,
+            current_episode,
+            frame,
+            img_fps
+        )
+
+
         # 3. formatar a mensgem do post
         # 4. postar frame no facebook (unpublished)
         # 5. random_crop

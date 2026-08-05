@@ -6,10 +6,10 @@ from langdetect import detect
 
 from src.frame_utils import timestamp_to_seconds
 from src.logger import get_logger
-from src.settings import SUBTITLES_DIR
 
 logger = get_logger(__name__)
 
+SUBTITLES_DIR = Path() / "subtitles"
 
 LANGUAGE_CODES = {
     "en": "English",
@@ -34,283 +34,158 @@ LANGUAGE_CODES = {
 }
 
 
-def remove_tags(message: str) -> str:
-    """Remove ASS/SSA tags and control codes from a subtitle string."""
-    if not message or not isinstance(message, str):
-        return message
-
-    pattern = re.compile(r"\{\s*[^}]*\s*\}|\\N|\\[a-zA-Z]+\d*|\\c&H[0-9A-Fa-f]+&")
-    message = pattern.sub(" ", message)
-    return re.sub(r"\s+", " ", message).strip()
-
-
 @lru_cache(maxsize=32)
-def parse_ass_file(file_path: Path) -> dict:
+def _extract_raw_text(file_path: Path) -> str | None:
     """
-    Reads and parses a .ass subtitle file, returning subtitle information and detected language.
-    Uses cache to avoid parsing the same file multiple times.
+    Extracts raw text lines from a subtitle file (.ass or .srt).
 
     Args:
-        file_path (Path): Path to the .ass subtitle file.
+        file_path (Path): Path to the subtitle file.
 
     Returns:
-        dict: Dictionary containing file name, detected language, and a list of subtitle entries.
+        str | None: The raw text content of the file, or None on error.
     """
 
-    # Open the subtitle file and collect all lines that start with "Dialogue:"
-    with file_path.open("r", encoding="utf-8") as f:
-        dialogues = [line for line in f if line.startswith("Dialogue:")]
+    if not file_path.exists() or not file_path.is_file():
+        logger.warning("Subtitle file %s does not exist or is not a file", file_path)
+        return None
 
-    # Concatenate all dialogue texts (with tags removed) for language detection
-    dialogues_text = " ".join(remove_tags(line.split(",", 9)[9]) for line in dialogues)
     try:
-        # Detect language using langdetect and map to human-readable name
-        language_name = LANGUAGE_CODES.get(detect(dialogues_text), "Unknown_language")
-    except Exception:
-        language_name = "Unknown_language"
+        with file_path.open("r", encoding="utf-8") as f:
+            raw_text = "".join(line for line in f)
 
-    subtitles_data = []
-    for line in dialogues:
-        try:
-            # Split the dialogue line into its respective fields
-            parts = line.split(",", 9)
-            subtitles_data.append(
-                {
-                    "Layer": parts[0],
-                    "Start": timestamp_to_seconds(parts[1]),
-                    "End": timestamp_to_seconds(parts[2]),
-                    "Style": parts[3],
-                    "Actor": parts[4],
-                    "MarginL": parts[5],
-                    "MarginR": parts[6],
-                    "MarginV": parts[7],
-                    "Effect": parts[8],
-                    "Text": remove_tags(parts[9]),
-                }
-            )
-        except (IndexError, ValueError) as error:
-            # Log the failure but keep parsing the rest of the file.
-            logger.error(
-                "Failed to parse ASS dialogue line %r in %s: %s",
-                line.strip(),
-                file_path.name,
-                error,
-            )
-            continue
+    except (FileNotFoundError, PermissionError) as e:
+        logger.error("Error occurred while reading subtitle file %s: %s", file_path, e)
+        return None
 
-    return {
-        "file_name": file_path.name,
-        "language": language_name,
-        "subtitles": subtitles_data,
-    }
+    return raw_text
 
 
 @lru_cache(maxsize=32)
-def parse_srt_file(file_path: Path) -> dict:
+def _remove_tags(raw_text: str) -> str:
+    """Remove ASS/SSA tags and control codes from a subtitle string."""
+    if not raw_text:
+        return raw_text
+
+    pattern = re.compile(r"\{\s*[^}]*\s*\}|\\N|\\[a-zA-Z]+\d*|\\c&H[0-9A-Fa-f]+&")
+    cleaned_text = pattern.sub(" ", raw_text)
+
+    return re.sub(r"[^\S\n]+", " ", cleaned_text).strip()
+
+
+@lru_cache(maxsize=32)
+def _get_lang(cleaned_text: str) -> str:
     """
-    Reads and parses an .srt subtitle file into a normalized structure.
-
-    The .srt format is composed of blocks:
-      1) numeric index
-      2) time range line: "HH:MM:SS,mmm --> HH:MM:SS,mmm"
-      3) one or more text lines
-      4) blank line
-
-    Returns a dict with metadata and a list of items containing Start/End in seconds.
+    Detects the language of the cleaned subtitle text and returns the
+    human-readable language name (e.g. "English", "Português").
     """
-
-    with file_path.open("r", encoding="utf-8") as f:
-        lines = [line.rstrip("\n") for line in f]
-
-    time_line_regex = re.compile(
-        r"^\s*(\d{2}:\d{2}:\d{2},\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2},\d{3}).*$"
-    )
-
-    subtitles_data: list[dict] = []
-    collected_text_lines: list[str] = []
-    language_name = "Unknown_language"
-
-    i = 0
-    while i < len(lines):
-        # Skip empty lines
-        if lines[i].strip() == "":
-            i += 1
-            continue
-
-        # Optional numeric index line
-        if lines[i].strip().isdigit():
-            i += 1
-            if i >= len(lines):
-                break
-
-        # Time line must be present now
-        match = time_line_regex.match(lines[i])
-        if not match:
-            # Not a valid block; advance to next line
-            i += 1
-            continue
-
-        start_ts, end_ts = match.groups()
-        i += 1
-
-        # Collect one or more text lines until blank line or EOF
-        text_lines: list[str] = []
-        while i < len(lines) and lines[i].strip() != "":
-            text_lines.append(lines[i])
-            i += 1
-
-        # Prepare entry
-        text = remove_tags(" ".join(text_lines).strip())
-        try:
-            start_seconds = timestamp_to_seconds(start_ts, format="srt")
-            end_seconds = timestamp_to_seconds(end_ts, format="srt")
-        except (ValueError, AttributeError) as error:
-            logger.error(
-                "Failed to parse SRT timestamp range %r -> %r in %s: %s",
-                start_ts,
-                end_ts,
-                file_path.name,
-                error,
-            )
-            i += 1
-            continue
-
-        subtitles_data.append(
-            {
-                "Start": start_seconds,
-                "End": end_seconds,
-                "Text": text,
-                # these are not used for srt subtitles
-                "Style": None,
-                "Actor": None,
-                "MarginL": None,
-                "MarginR": None,
-                "MarginV": None,
-                "Effect": None,
-            }
-        )
-
-        collected_text_lines.extend(text_lines)
-
-        # Move past the blank line separator if present
-        if i < len(lines) and lines[i].strip() == "":
-            i += 1
-
-    # Language detection from collected text
     try:
-        language_name = LANGUAGE_CODES.get(
-            detect(" ".join(collected_text_lines)), "Unknown_language"
-        )
+        lang = detect(cleaned_text)
     except Exception:
-        language_name = "Unknown_language"
+        logger.error("Failed to detect language for cleaned text.")
+        lang = "Unknown"
 
-    return {
-        "file_name": file_path.name,
-        "language": language_name,
-        "subtitles": subtitles_data,
-    }
+    return LANGUAGE_CODES.get(lang, lang)
 
 
-def __ass_format(frame_number: int, img_fps: float, subtitles_data: dict) -> str | None:
-    """
-    Returns the formatted text of the active subtitle for the current frame.
-    """
-    # regex patterns for signs
-    SIGN_EXPRESSION = re.compile(
-        r"sign|signs",
-        re.IGNORECASE,
-    )
-    # regex patterns for music
-    MUSIC_EXPRESSION = re.compile(
+@lru_cache(maxsize=32)
+def _parse_ass(cleaned_text: str) -> list[dict]:
+    """Parse the cleaned ASS text into a list of dialogue dictionaries."""
+    dialogues_data: list[dict] = []
+
+    for line in cleaned_text.split("\n"):
+        if line.startswith("Dialogue:"):
+            parts = line.split(",", 9)
+            line_data = {
+                "Layer"     : parts[0],
+                "Start"     : timestamp_to_seconds(parts[1]),
+                "End"       : timestamp_to_seconds(parts[2]),
+                "Style"     : parts[3],
+                "Actor"     : parts[4],
+                "MarginL"   : parts[5],
+                "MarginR"   : parts[6],
+                "MarginV"   : parts[7],
+                "Effect"    : parts[8],
+                "Text"      : parts[9],
+            }
+
+            dialogues_data.append(line_data)
+
+    return dialogues_data
+
+
+def _ass_format(sub: dict) -> str:
+    """Format a subtitle entry adding decoration for signs and music."""
+    sign_expression = re.compile(r"sign|signs", re.IGNORECASE)
+    music_expression = re.compile(
         r"\blyric(s)?\b|\bsong(s)?\b|\bopening\b|\bending\b|\bop\b|\bed\b",
         re.IGNORECASE,
     )
 
-    time = frame_number / img_fps  # frame_number in seconds
+    style = sub.get("Style", "")
+    actor = sub.get("Actor", "")
+    text = sub.get("Text", "")
 
-    for sub in subtitles_data.get("subtitles", []):
-        if sub["Start"] <= time <= sub["End"]:
-            style = sub.get("Style") or ""
-            actor = sub.get("Actor") or ""
-            text = sub.get("Text", "")
-            lang = subtitles_data.get("language", "")
+    if sign_expression.search(style) or sign_expression.search(actor):
+        return f"【 {text} 】"
+    if music_expression.search(style) or music_expression.search(actor):
+        return f"♪ {text} ♪\n"
 
-            if SIGN_EXPRESSION.search(style) or SIGN_EXPRESSION.search(actor):
-                text = f"【 {text} 】"
-            elif MUSIC_EXPRESSION.search(style) or MUSIC_EXPRESSION.search(actor):
-                text = f"♪ {text} ♪\n"
-
-            return f"[{lang}]\n{text}"
-
-    return None
+    return text
 
 
-def __srt_format(frame_number: int, img_fps: float, subtitles_data: dict) -> str | None:
-    """Returns the active SRT subtitle text for the current frame.
+def _find_subtext(frame_number: int, img_fps: float, dialogues_data: list[dict]) -> dict | None:
+    """Return the active subtitle entry for the given frame time."""
+    current_time = round(frame_number / img_fps, 2)
 
-    SRT entries contain only timing and text; we simply prefix with language
-    and return the text for the active time window if present.
-    """
-    current_time = frame_number / img_fps
-    lang = subtitles_data.get("language", "")
-    for sub in subtitles_data.get("subtitles", []):
+    for sub in dialogues_data:
         if sub["Start"] <= current_time <= sub["End"]:
-            text = sub.get("Text", "")
-            return f"[{lang}]\n{text}" if text else None
+            return sub
+
     return None
 
 
-def get_subtitle_for_frame(
-    frame_number: int, episode_number: int, image_fps: int | float
-) -> str | None:
+def get_subtitle(
+    season: int | str, episode: int | str, frame_number: int, img_fps: float
+) -> list[dict[str, str]] | None:
+    """Return the subtitle language and text for the requested frame.
+
+    Returns a list of dicts with "lang" and "text" for each subtitle file
+    that has an active subtitle at the given frame time.
     """
-    Returns formatted subtitle messages for a given frame and episode.
+    folder = SUBTITLES_DIR / f"{season}" / f"{episode}"
+    if not folder.exists() or not folder.is_dir():
+        logger.warning("Subtitle folder %s does not exist or is not a directory", folder)
+        return None
+    
+    files = [f for f in folder.iterdir() if f.is_file()]
 
-    Args:
-        frame_number (int): The frame number to retrieve subtitles for.
-        episode_number (int): The episode number to look up subtitle files.
-        image_fps (int | float): The frames per second of the image/video.
-    Returns:
-        str | None: The formatted subtitle messages, or None if not found.
-    """
-
-    if not isinstance(frame_number, int) or not isinstance(episode_number, int):
-        logger.error(
-            "get_subtitle_for_frame: frame_number and episode_number must be int, got %s and %s",
-            type(frame_number).__name__,
-            type(episode_number).__name__,
-        )
+    if not files:
+        logger.warning("No subtitle files found in %s", folder)
         return None
 
-    episode_subtitles_folder = SUBTITLES_DIR / f"{episode_number:02d}"
+    subtitle_results = []
 
-    if not episode_subtitles_folder.exists() or not episode_subtitles_folder.is_dir():
-        # Warning (not error) because some episodes legitimately ship without subs.
-        logger.warning(
-            "No subtitles folder for episode %02d (expected at %s)",
-            episode_number,
-            episode_subtitles_folder,
-        )
-        return None
-
-    subtitle_files = [f for f in episode_subtitles_folder.iterdir() if f.is_file()]
-    if not subtitle_files:
-        logger.warning("Subtitles folder %s is empty", episode_subtitles_folder)
-        return None
-
-    formatted_messages = ""
-    for subtitle_file in subtitle_files:
-        match subtitle_file.suffix:
+    for file in files:
+        match file.suffix:
             case ".ass":
-                ass_subtitles_data = parse_ass_file(subtitle_file)
-                formatted_message = __ass_format(frame_number, image_fps, ass_subtitles_data)
+                raw_text = _extract_raw_text(file)
+                cleaned_text = _remove_tags(raw_text)
+                lang = _get_lang(cleaned_text)
+                dialogues_data = _parse_ass(cleaned_text)
+                sub = _find_subtext(frame_number, img_fps, dialogues_data)
+
+                if sub:
+                    text = _ass_format(sub)
+                    subtitle_results.append({"lang": lang, "text": text})
+            
             case ".srt":
-                srt_subtitles_data = parse_srt_file(subtitle_file)
-                formatted_message = __srt_format(frame_number, image_fps, srt_subtitles_data)
-            case _:
-                formatted_message = None
+                # Placeholder for .srt parsing logic
+                pass
 
-        if formatted_message:
-            formatted_messages += formatted_message + "\n\n"
+    return subtitle_results 
 
-    return formatted_messages or None
+
+def _parse_srt() -> None:
+    """Parse .srt subtitle files (placeholder)."""
+    pass

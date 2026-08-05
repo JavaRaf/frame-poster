@@ -42,7 +42,7 @@ def load_and_validate() -> CommentedMap:
     """
     config = load_configs()
     if not config:
-        raise ValidationError("Config file is empty or could not be loaded")
+        raise FileNotFoundError("Config file is empty or could not be loaded")
 
     validate_config(config)
     return config
