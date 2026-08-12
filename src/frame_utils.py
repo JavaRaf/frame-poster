@@ -1,5 +1,4 @@
 from random import randint
-import time
 from pathlib import Path
 
 import httpx
@@ -7,7 +6,6 @@ from PIL import Image
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.logger import get_logger
-
 
 logger = get_logger(__name__)
 
@@ -32,7 +30,10 @@ def _timestamp_to_frame(timestamp: str, fps: int | float = 3.5) -> int | None:
         hours, minutes, seconds = timestamp.split(":")
         seconds, centiseconds = seconds.split(".")
         total_seconds = (
-            int(hours) * 3600 + int(minutes) * 60 + int(seconds) + int(centiseconds) / 100
+            int(hours) * 3600
+            + int(minutes) * 60
+            + int(seconds)
+            + int(centiseconds) / 100
         )
         return round(total_seconds * fps)
     except (ValueError, AttributeError) as error:
@@ -65,9 +66,9 @@ def timestamp_to_seconds(time_str: str, format: str = "ass") -> float | None:
     elif format == "srt":
         try:
             hours, minutes, rest = time_str.split(":")
-            seconds, millis = rest.split(",")
+            seconds, cc = rest.split(",")
             total_seconds = (
-                int(hours) * 3600 + int(minutes) * 60 + int(seconds) + int(millis) / 1000.0
+                int(hours) * 3600 + int(minutes) * 60 + int(seconds) + int(cc) / 1000.0
             )
             return total_seconds
         except (ValueError, AttributeError) as error:
@@ -80,7 +81,7 @@ def timestamp_to_seconds(time_str: str, format: str = "ass") -> float | None:
         return None
 
 
-def _frame_to_timestamp(current_frame: int, img_fps: int | float) -> str | None:
+def frame_to_timestamp(current_frame: int, img_fps: int | float) -> str | None:
     """Converts frame number to timestamp in .ass format (H:MM:SS.CC).
 
     Args:
@@ -90,6 +91,13 @@ def _frame_to_timestamp(current_frame: int, img_fps: int | float) -> str | None:
     Returns:
         str | None: Timestamp in the format 'H:MM:SS.CC', or None if error occurs.
     """
+
+    if not isinstance(img_fps, (int, float)) or img_fps <= 0:
+        logger.error(
+            "Invalid img_fps %r for frame_to_timestamp: must be positive int or float",
+            img_fps,
+        )
+        return None
 
     try:
         total_seconds = current_frame / img_fps
@@ -161,7 +169,7 @@ def random_crop(frame_path: Path, random_crop: dict) -> tuple[Path, str] | None:
             )
             return None, None
 
-        crop_width = crop_height = random.randint(min_size, max_size)
+        crop_width = crop_height = randint(min_size, max_size)
 
         with Image.open(frame_path) as img:
             image_width, image_height = img.size
@@ -183,7 +191,12 @@ def random_crop(frame_path: Path, random_crop: dict) -> tuple[Path, str] | None:
 
             # Crop image
             cropped_img = img.crop(
-                (cordinate_x, cordinate_y, cordinate_x + crop_width, cordinate_y + crop_height)
+                (
+                    cordinate_x,
+                    cordinate_y,
+                    cordinate_x + crop_width,
+                    cordinate_y + crop_height,
+                )
             )
 
             # Save the cropped image inside the shared temp folder.
@@ -191,7 +204,6 @@ def random_crop(frame_path: Path, random_crop: dict) -> tuple[Path, str] | None:
             temp_dir.mkdir(parents=True, exist_ok=True)
             cropped_path = temp_dir / f"{frame_path.stem}_crop{frame_path.suffix}"
             cropped_img.save(cropped_path)
-            logger.info("Random crop saved to %s", cropped_path)
             message = f"Random Crop. width[{crop_width}] height[{crop_height}] ~ cordinate_x: {cordinate_x}, cordinate_y: {cordinate_y}"
 
             return cropped_path, message
@@ -218,6 +230,7 @@ def _fall_back(url: str) -> str:
     """
     return f"https://images.weserv.nl/?url={url}"
 
+
 def _build_url(github_repo: str, frame_number: int) -> str:
     """Build the GitHub raw content URL for a frame.
 
@@ -228,7 +241,14 @@ def _build_url(github_repo: str, frame_number: int) -> str:
     Returns:
         str: The complete URL to the frame image.
     """
-    return "https://raw.githubusercontent.com/" + github_repo + "/" + f"{frame_number:04d}" + ".jpg"
+    return (
+        "https://raw.githubusercontent.com/"
+        + github_repo
+        + "/"
+        + f"{frame_number:04d}"
+        + ".jpg"
+    )
+
 
 def _output_path(season_number: int, episode_number: int, frame_number: int) -> Path:
     """Generate the local output path for a frame.
@@ -241,12 +261,33 @@ def _output_path(season_number: int, episode_number: int, frame_number: int) -> 
     Returns:
         Path: The local path where the frame will be saved.
     """
-    output_path = FRAMES_DIR / f"S-{season_number}" / f"E-{episode_number}" / f"{frame_number:04d}.jpg"
+    output_path = (
+        FRAMES_DIR
+        / f"S-{season_number}"
+        / f"E-{episode_number}"
+        / f"{frame_number:04d}.jpg"
+    )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     return output_path
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
-def download_frame(url: str, output_path: Path) -> None:
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=4, max=10),
+    before_sleep=lambda retry_state: (
+        logger.warning(
+            "Download attempt %d failed, retrying...", retry_state.attempt_number
+        )
+        if retry_state.attempt_number < 3
+        else None
+    ),
+    retry_error_callback=lambda retry_state: logger.error(
+        "Failed to download frame after %d attempts: %s",
+        retry_state.attempt_number,
+        retry_state.outcome.exception(),
+    ),
+)
+def _download_frame(url: str, output_path: Path) -> None:
     """Download a frame from URL and save it to the output path.
 
     Uses retry logic with exponential backoff. Falls back to images.weserv.nl
@@ -260,57 +301,51 @@ def download_frame(url: str, output_path: Path) -> None:
         httpx.HTTPStatusError: If the download fails after retries.
     """
     try:
-        response = httpx.get(url)
+        response = httpx.get(url, follow_redirects=True)
         if response.status_code == 429:
-            response = httpx.get(_fall_back(url))
-        
+            response = httpx.get(_fall_back(url), follow_redirects=True)
+
         response.raise_for_status()
-        
+
         with open(output_path, "wb") as f:
             f.write(response.content)
 
-    except httpx.HTTPStatusError as e:
-        logger.error("Failed to download frame: %s", e)
+    except httpx.HTTPStatusError:
         raise
 
-    
 
-def get_frame(season_number: int, episode_number: int, frame_number: int, github_repo: str) -> Path | None:
+def get_frame(
+    season_number: int, episode_number: int, frame_number: int, github_repo: str
+) -> Path | None:
     """Download a frame from GitHub and save it locally.
-    
+
     Returns Path if successful, None if failed.
     """
     if frame_number < 0:
         logger.error("Invalid frame_number: %d (must be >= 0)", frame_number)
         return None
-    
+
     if not github_repo:
         logger.error("Empty github_repo provided")
         return None
-    
+
     url = _build_url(github_repo, frame_number)
     output_path = _output_path(season_number, episode_number, frame_number)
-    
+
     if output_path.exists():
         logger.info("Frame already exists: %s", output_path)
         return output_path
-    
+
     try:
         logger.info("Downloading frame %d from %s", frame_number, url)
-        download_frame(url, output_path)
-        
+        _download_frame(url, output_path)
+
         if not output_path.exists():
             logger.error("Download failed: file not created at %s", output_path)
             return None
-            
+
         return output_path
-        
+
     except Exception as e:
         logger.error("Failed to get frame %d: %s", frame_number, e)
         return None
-
-
-
-
-
-

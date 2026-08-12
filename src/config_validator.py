@@ -134,7 +134,6 @@ def _validate_episodes(episodes: list, season_index: int) -> None:
         # Required fields
         required = {
             "episode": (str, int),
-            "image_fps": (int, float),
             "max_frames": int,
             "github_repo": str,
         }
@@ -176,12 +175,18 @@ def _validate_episodes(episodes: list, season_index: int) -> None:
             )
 
         # Validate values
-        if "image_fps" in episode and episode["image_fps"] <= 0:
-            logger.error(
-                f"season [{season_index}].episode index [{i}]: field 'image_fps' must be > 0"
-            )
+        if "img_fps" in episode:
+            img_fps = episode["img_fps"]
 
-        if "max_frames" in episode and episode["max_frames"] < 0:
+            if img_fps is not None and img_fps != "":
+                if not isinstance(img_fps, (int, float)):
+                    logger.error(
+                        f"season [{season_index}].episode index [{i}]: field 'img_fps' must be int or float, got {type(img_fps).__name__}"
+                    )
+                elif img_fps <= 0:
+                    logger.error(
+                        f"season [{season_index}].episode index [{i}]: field 'img_fps' must be > 0"
+                    )
             logger.error(
                 f"season [{season_index}].episode index [{i}]: field 'max_frames' must be >= 0"
             )

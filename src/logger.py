@@ -252,16 +252,11 @@ def log_post_id(
     )
 
     try:
-        with FACEBOOK_LOG.open(
-            "a",
-            encoding="utf-8",
-        ) as f:
+        with FACEBOOK_LOG.open("a", encoding="utf-8") as f:
             f.write(entry)
 
     except OSError as e:
         logger.error(
             "Failed to append to fb log (%s): %s",
-            FACEBOOK_LOG,
-            e,
-            exc_info=True,
+            FACEBOOK_LOG, e
         )

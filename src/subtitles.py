@@ -63,11 +63,11 @@ def _extract_raw_text(file_path: Path) -> str | None:
 
 @lru_cache(maxsize=32)
 def _remove_tags(raw_text: str) -> str:
-    """Remove ASS/SSA tags and control codes from a subtitle string."""
+    """Remove ASS/SSA styling tags and simple HTML tags from a subtitle string."""
     if not raw_text:
         return raw_text
 
-    pattern = re.compile(r"\{\s*[^}]*\s*\}|\\N|\\[a-zA-Z]+\d*|\\c&H[0-9A-Fa-f]+&")
+    pattern = re.compile(r"\{\s*[^}]*\s*\}|<[^>]+>|\\N|\\[a-zA-Z]+\d*|\\c&H[0-9A-Fa-f]+&")
     cleaned_text = pattern.sub(" ", raw_text)
 
     return re.sub(r"[^\S\n]+", " ", cleaned_text).strip()
@@ -77,7 +77,7 @@ def _remove_tags(raw_text: str) -> str:
 def _get_lang(cleaned_text: str) -> str:
     """
     Detects the language of the cleaned subtitle text and returns the
-    human-readable language name (e.g. "English", "Português").
+    human-readable language name (e.g. "English", "Português", "Spanish" ...).
     """
     try:
         lang = detect(cleaned_text)
@@ -114,6 +114,35 @@ def _parse_ass(cleaned_text: str) -> list[dict]:
     return dialogues_data
 
 
+@lru_cache(maxsize=32)
+def _parse_srt(cleaned_text: str) -> list[dict]:
+    """Parse the cleaned SRT text into a list of dialogue dictionaries."""
+    dialogues_data: list[dict] = []
+
+    for block in re.split(r"\n\s*\n", cleaned_text.strip()):
+        lines = [line.strip() for line in block.splitlines() if line.strip()]
+        if not lines:
+            continue
+
+        time_line = next((line for line in lines if "-->" in line), None)
+        if not time_line:
+            continue
+
+        start_text, end_text = [part.strip() for part in time_line.split("-->", 1)]
+        start = timestamp_to_seconds(start_text, format="srt")
+        end = timestamp_to_seconds(end_text, format="srt")
+
+        if start is None or end is None:
+            continue
+
+        text_lines = [line for line in lines if line != time_line and not line.isdigit()]
+        text = " ".join(text_lines)
+
+        dialogues_data.append({"Start": start, "End": end, "Text": text})
+
+    return dialogues_data
+
+
 def _ass_format(sub: dict) -> str:
     """Format a subtitle entry adding decoration for signs and music."""
     sign_expression = re.compile(r"sign|signs", re.IGNORECASE)
@@ -134,8 +163,13 @@ def _ass_format(sub: dict) -> str:
     return text
 
 
+def _srt_format(sub: dict) -> str:
+    """Format a subtitle entry for SRT output."""
+    return sub.get("Text", "")
+
+
 def _find_subtext(frame_number: int, img_fps: float, dialogues_data: list[dict]) -> dict | None:
-    """Return the active subtitle entry for the given frame time."""
+    """Return the active subtitle entry from a list of dialogues."""
     current_time = round(frame_number / img_fps, 2)
 
     for sub in dialogues_data:
@@ -158,8 +192,11 @@ def get_subtitle(
         logger.warning("Subtitle folder %s does not exist or is not a directory", folder)
         return None
     
-    if not img_fps or img_fps <= 0:
-        logger.warning("Invalid img_fps value: %s. It must be a positive number.", img_fps)
+    if img_fps is None or img_fps == "":
+        return None
+
+    if img_fps <= 0:
+        logger.error("img_fps is set, but is not a valid value")
         return None
     
     files = [f for f in folder.iterdir() if f.is_file()]
@@ -173,27 +210,29 @@ def get_subtitle(
     for file in files:
         match file.suffix:
             case ".ass":
-                raw_text = _extract_raw_text(file)
-                cleaned_text = _remove_tags(raw_text)
-                lang = _get_lang(cleaned_text)
-                dialogues_data = _parse_ass(cleaned_text)
-                sub = _find_subtext(frame_number, img_fps, dialogues_data)
+                raw_text        = _extract_raw_text(file)
+                cleaned_text    = _remove_tags(raw_text)
+                lang            = _get_lang(cleaned_text)
+                dialogues_data  = _parse_ass(cleaned_text)
+                sub             = _find_subtext(frame_number, img_fps, dialogues_data)
 
                 if sub:
                     text = _ass_format(sub)
                     subtitle_results.append({"lang": lang, "text": text})
-            
+
             case ".srt":
-                # Placeholder for .srt parsing logic
-                pass
+                raw_text        = _extract_raw_text(file)
+                cleaned_text    = _remove_tags(raw_text)
+                lang            = _get_lang(cleaned_text)
+                dialogues_data  = _parse_srt(cleaned_text)
+                sub             = _find_subtext(frame_number, img_fps, dialogues_data)
+
+                if sub:
+                    text = _srt_format(sub)
+                    subtitle_results.append({"lang": lang, "text": text})
 
             case _:
                 logger.warning("Unsupported subtitle file format: %s", file.suffix)
                 continue
 
-    return subtitle_results 
-
-
-def _parse_srt() -> None:
-    """Parse .srt subtitle files (placeholder)."""
-    pass
+    return subtitle_results

@@ -40,10 +40,10 @@ seasons:                                                # type: list of objects
     episodes:                                           # type: list of objects - Episodes in this season
       - episode: 1                                      # type: number | string - Episode name (used for folder path in GitHub) (need matching folder name in GitHub repo) (epiosode name can be a number or a string)
         title: "Episode 01"                             # type: string - Episode title (used in post messages) (optional)
-        image_fps: 2                                    # type: integer | float - Frames per second of the source video (needed for proper timing subtitles)
+        img_fps: 3.5                                    # type: integer | float - Frames per second of the source video (needed for proper timing subtitles)
         max_frames: 15                                  # type: integer - Maximum number of frames obtained from the video after cutted
         album_id: 703927706019990                       # type: integer - Facebook album ID for reposting frames in Facebook (optional)
-        github_repo: "username/repo/branch/01"          # type: string - Github repository path for this episode (required)
+        github_repo: "JavaRaf/season2/master/01/"       # type: string - Github repository path for this episode (required)
 
     # add more episodes here
 
@@ -102,7 +102,7 @@ posting:                                              # type: object
 random_crop:                                          # type: object
   enabled: true                                       # type: boolean - Enable random cropping for comments
   min_size: 200                                       # type: integer - Minimum square crop size in pixels (default: 200)
-  max_size: 600                                       # type: integer - Maximum square crop size in pixels (default: 400)
+  max_size: 600                                       # type: integer - Maximum square crop size in pixels (default: 600)
 
 # ======================================================================================================================
 # API and System Configuration

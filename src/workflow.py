@@ -10,7 +10,6 @@ from statistics import mean
 from functools import lru_cache
 from src.logger import get_logger
 
-
 logger = get_logger(__name__)
 
 
@@ -41,7 +40,9 @@ def _read_cron_expression(file_path: str = WORKFLOW_PATH) -> str | None:
 
 
 @lru_cache(maxsize=1)
-def _calc_average_run_interval(cron_expr: str, runs: int = DEFAULT_RUNS) -> float | None:
+def _calc_average_run_interval(
+    cron_expr: str, runs: int = DEFAULT_RUNS
+) -> float | None:
     """
     Calculates the average run interval in seconds for a given cron expression.
 
