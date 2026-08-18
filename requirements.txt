@@ -9,4 +9,5 @@ croniter==6.2.3
 PyYAML==6.0.3
 rich==14.1.0
 tzdata==2026.2
+pyfiglet==1.0.4
 

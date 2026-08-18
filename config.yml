@@ -54,7 +54,7 @@ seasons:                                                # type: list of objects
 progress:                                             # type: object
   season: 1                                           # type: integer | string - Current season number
   episode: 1                                          # type: integer | string - Current episode number/index
-  frame: 0                                            # type: integer - Current frame number (0 = not started, starts from 1)
+  frame: 2                                            # type: integer - Current frame number (0 = not started, starts from 1)
 
 # ======================================================================================================================
 # Message Templates
@@ -71,6 +71,13 @@ progress:                                             # type: object
 #   {episode_title}   - The title of the episode
 #   {post_interval}   - The interval between posts in minutes
 #   {execution_interval} - The interval between script executions in hours
+#
+#   {new_line}        - Alias for newline
+#   {linebreak}       - Alias for newline
+#   {br}              - Alias for newline
+
+
+
 
 TEMPLATE_POST_MSG: |                                  # type: string - Template for regular frame posts
   Season {season}, Episode {episode}, Frame {frame_number} out of {max_frames}
