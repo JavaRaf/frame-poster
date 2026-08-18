@@ -144,7 +144,7 @@ def random_crop(frame_path: Path, random_crop: dict) -> tuple[Path, str] | None:
 
     if not frame_path.is_file():
         logger.error("random_crop: file not found at %s", frame_path)
-        return None, None
+        return None
 
     try:
         # Keys describe the minimum and maximum *size* of the square crop in
@@ -159,7 +159,7 @@ def random_crop(frame_path: Path, random_crop: dict) -> tuple[Path, str] | None:
                 min_size,
                 max_size,
             )
-            return None, None
+            return None
 
         if min_size > max_size:
             logger.error(
@@ -167,7 +167,7 @@ def random_crop(frame_path: Path, random_crop: dict) -> tuple[Path, str] | None:
                 min_size,
                 max_size,
             )
-            return None, None
+            return None
 
         crop_width = crop_height = randint(min_size, max_size)
 
@@ -183,7 +183,7 @@ def random_crop(frame_path: Path, random_crop: dict) -> tuple[Path, str] | None:
                     crop_width,
                     crop_height,
                 )
-                return None, None
+                return None
 
             # Generate random crop coordinates. eg: 0px... 1920px
             cordinate_x = randint(0, image_width - crop_width)
@@ -216,7 +216,7 @@ def random_crop(frame_path: Path, random_crop: dict) -> tuple[Path, str] | None:
             e,
             exc_info=True,
         )
-        return None, None
+        return None
 
 
 def _fall_back(url: str) -> str:

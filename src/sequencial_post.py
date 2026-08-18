@@ -1,8 +1,3 @@
-import os
-from pathlib import Path
-from tabnanny import check
-
-from dotenv import load_dotenv
 from ruamel.yaml import CommentedMap
 
 from src.frame_utils import get_frame, frame_to_timestamp
@@ -12,8 +7,6 @@ from src.subtitles import get_subtitle
 from src.workflow import get_workflow_interval_hours
 from src.message import format_message
 from src.poster import create_post, post_comment
-
-load_dotenv()
 
 
 logger = get_logger(__name__)
@@ -42,7 +35,7 @@ def sequencial_post(facebook_client: FacebookGraphAPI, config: CommentedMap):
     fph                      : int = posting_config.get("fph", 15)  # frames por hora
     post_interval            : int = posting_config.get("post_interval", 2)  # minutos entre posts
     github_repo              : str = episode_data.get("github_repo", "")
-    sub_comment_enabled      : bool = config.get("sub_comment", False)
+    sub_comment_enabled      : bool = posting_config.get("sub_comment", False)
 
     TEMPLATE_POST_MSG        : str = config.get("TEMPLATE_POST_MSG")
     TEMPLATE_BIO_MSG         : str = config.get("TEMPLATE_BIO_MSG")
@@ -57,8 +50,8 @@ def sequencial_post(facebook_client: FacebookGraphAPI, config: CommentedMap):
     random_crop              : dict = config.get("random_crop", {})
 
     random_crop_enabled      : bool = random_crop.get("enabled", False)
-    min_size                 : int  = random_crop.get("min_size")
-    max_size                 : int  = random_crop.get("max_size")
+    min_size                 : int  = random_crop.get("min_size", 200)
+    max_size                 : int  = random_crop.get("max_size", 600)
     
     
 
@@ -102,7 +95,7 @@ def sequencial_post(facebook_client: FacebookGraphAPI, config: CommentedMap):
             **static_placeholders,
             "frame_number"  : frame_number,
             "subtitles"     : subtitle_list,
-            "timestamp"     : frame_to_timestamp(frame_number, img_fps) or "{}"
+            "timestamp"     : frame_to_timestamp(frame_number, img_fps) or ""
         }
 
         # foramtando a mensagem que acompanha a imagem

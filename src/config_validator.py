@@ -187,9 +187,13 @@ def _validate_episodes(episodes: list, season_index: int) -> None:
                     logger.error(
                         f"season [{season_index}].episode index [{i}]: field 'img_fps' must be > 0"
                     )
-            logger.error(
-                f"season [{season_index}].episode index [{i}]: field 'max_frames' must be >= 0"
-            )
+
+        if "max_frames" in episode:
+            max_frames = episode["max_frames"]
+            if isinstance(max_frames, int) and max_frames < 0:
+                logger.error(
+                    f"season [{season_index}].episode index [{i}]: field 'max_frames' must be >= 0"
+                )
 
 
 def _validate_posting(posting: CommentedMap) -> None:
