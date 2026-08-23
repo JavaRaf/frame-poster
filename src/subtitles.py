@@ -129,8 +129,8 @@ def _parse_srt(cleaned_text: str) -> list[dict]:
             continue
 
         start_text, end_text = [part.strip() for part in time_line.split("-->", 1)]
-        start = timestamp_to_seconds(start_text, format="srt")
-        end = timestamp_to_seconds(end_text, format="srt")
+        start = timestamp_to_seconds(start_text, fmt="srt")
+        end = timestamp_to_seconds(end_text, fmt="srt")
 
         if start is None or end is None:
             continue
@@ -191,14 +191,14 @@ def get_subtitle(
     if not folder.exists() or not folder.is_dir():
         logger.warning("Subtitle folder %s does not exist or is not a directory", folder)
         return None
-    
+
     if img_fps is None or img_fps == "":
         return None
 
     if img_fps <= 0:
         logger.error("img_fps is set, but is not a valid value")
         return None
-    
+
     files = [f for f in folder.iterdir() if f.is_file()]
 
     if not files:

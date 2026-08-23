@@ -1,5 +1,5 @@
+﻿from pathlib import Path
 from random import randint
-from pathlib import Path
 
 import httpx
 from PIL import Image
@@ -17,7 +17,7 @@ FRAMES_DIR.mkdir(parents=True, exist_ok=True)
 def _timestamp_to_frame(timestamp: str, fps: int | float = 3.5) -> int | None:
     """
     Converts a timestamp (H:MM:SS.CC) from .ass subtitle format to a frame number.
-    Example: "0:01:02.50" → 1 minute, 2.5 seconds → calculated frame.
+    Example: "0:01:02.50" â†’ 1 minute, 2.5 seconds â†’ calculated frame.
 
     Args:
         timestamp (str): Example: "0:01:02.50"
@@ -41,10 +41,10 @@ def _timestamp_to_frame(timestamp: str, fps: int | float = 3.5) -> int | None:
         return None
 
 
-def timestamp_to_seconds(time_str: str, format: str = "ass") -> float | None:
+def timestamp_to_seconds(time_str: str, fmt: str = "ass") -> float | None:
     """
     Converts a timestamp (H:MM:SS.CC) to total seconds (float).
-    Example: "0:01:02.50" → 1 minute, 2.5 seconds → 62.5 seconds.
+    Example: "0:01:02.50" â†’ 1 minute, 2.5 seconds â†’ 62.5 seconds.
 
     Args:
         time_str (str): Example: "0:01:02.50"
@@ -52,7 +52,7 @@ def timestamp_to_seconds(time_str: str, format: str = "ass") -> float | None:
     Returns:
         float: Total seconds. Or None if error occurs.
     """
-    if format == "ass":
+    if fmt == "ass":
         try:
             h, m, s = time_str.split(":")
             s, cc = s.split(".")
@@ -63,7 +63,7 @@ def timestamp_to_seconds(time_str: str, format: str = "ass") -> float | None:
             logger.error("Invalid ASS timestamp %r: %s", time_str, error)
             return None
 
-    elif format == "srt":
+    elif fmt == "srt":
         try:
             hours, minutes, rest = time_str.split(":")
             seconds, cc = rest.split(",")
@@ -77,7 +77,7 @@ def timestamp_to_seconds(time_str: str, format: str = "ass") -> float | None:
 
     else:
         # Not an exception, just a programming error, so skip exc_info.
-        logger.error("Unsupported subtitle format %r (expected 'ass' or 'srt')", format)
+        logger.error("Unsupported subtitle format %r (expected 'ass' or 'srt')", fmt)
         return None
 
 
@@ -135,8 +135,8 @@ def random_crop(frame_path: Path, random_crop: dict) -> tuple[Path, str] | None:
 
     Args:
         frame_path: Path to the frame image.
-        random_crop_min_size: Minimum size of the random crop.
-        random_crop_max_size: Maximum size of the random crop.
+        min_size: Minimum size of the random crop.
+        max_size: Maximum size of the random crop.
 
     Returns:
         tuple[Path, str]: Tuple containing the path to the cropped image and the crop coordinates.
@@ -147,11 +147,11 @@ def random_crop(frame_path: Path, random_crop: dict) -> tuple[Path, str] | None:
         return None
 
     try:
-        # Keys describe the minimum and maximum *size* of the square crop in
-        # pixels, not coordinates. The legacy ``min_x``/``min_y`` names are
-        # still read as a fallback so older configs.yml files keep working.
-        min_size = int(random_crop.get("random_crop_min_size", 200))
-        max_size = int(random_crop.get("random_crop_max_size", 600))
+        # Primary keys are ``min_size``/``max_size`` (the square crop size in
+        # pixels). The legacy ``random_crop_min_size``/``random_crop_max_size``
+        # names are still read as a fallback so older configs keep working.
+        min_size = int(random_crop.get("min_size", random_crop.get("random_crop_min_size", 200)))
+        max_size = int(random_crop.get("max_size", random_crop.get("random_crop_max_size", 600)))
 
         if min_size <= 0 or max_size <= 0:
             logger.error(
@@ -204,7 +204,10 @@ def random_crop(frame_path: Path, random_crop: dict) -> tuple[Path, str] | None:
             temp_dir.mkdir(parents=True, exist_ok=True)
             cropped_path = temp_dir / f"{frame_path.stem}_crop{frame_path.suffix}"
             cropped_img.save(cropped_path)
-            message = f"Random Crop. width[{crop_width}] height[{crop_height}] ~ cordinate_x: {cordinate_x}, cordinate_y: {cordinate_y}"
+            message = (
+                f"Random Crop. width[{crop_width}] height[{crop_height}] ~ "
+                f"cordinate_x: {cordinate_x}, cordinate_y: {cordinate_y}"
+            )
 
             return cropped_path, message
 
@@ -235,7 +238,8 @@ def _build_url(github_repo: str, frame_number: int) -> str:
     """Build the GitHub raw content URL for a frame.
 
     Args:
-        github_repo: GitHub repository in format "username/repo/branch/" + folders and subfolders if needed.
+        github_repo: GitHub repository in format "username/repo/branch/"
+            + folders and subfolders if needed.
         frame_number: Frame number to fetch.
 
     Returns:
