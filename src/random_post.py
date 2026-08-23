@@ -331,6 +331,6 @@ def random_post(facebook_client: FacebookGraphAPI, config: CommentedMap) -> None
             posted = False
 
         if posted:
-            sleep(posting_interval)
+            sleep(posting_interval * 60)
         else:
             sleep(RETRY_DELAY_SECONDS)

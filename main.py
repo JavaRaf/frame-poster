@@ -6,6 +6,7 @@ from ruamel.yaml import CommentedMap
 from src.console import parse_args
 from src.facebook import ApiVersion, FacebookGraphAPI
 from src.load_configs import load_and_validate
+from src.summary_step import start_summary, add_summary_row, end_summary, Status
 from src.logger import get_logger, set_timezone_offset
 from src.random_post import random_post
 from src.sequencial_post import sequencial_post
@@ -36,15 +37,15 @@ def main(argv: list[str] | None = None) -> None:
 
     # ---------------------------------------------------------------------------------------------
     # Validate Facebook token and add to a github action summary
-    # start_summary()
-    # status, reson = facebook_client.validate_token()
-    # if not status:
-    #     add_summary_row("FB_TOKEN", f"invalid or expired: {reson}", Status.ERROR)
-    #     logger.error(f"Facebook token validation failed: {reson}")
-    #     return
+    start_summary()
+    status, reson = facebook_client.validate_token()
+    if not status:
+        add_summary_row("FB_TOKEN", f"invalid or expired: {reson}", Status.ERROR)
+        logger.error(f"Facebook token validation failed: {reson}")
+        return
 
-    # add_summary_row("FB_TOKEN", "found and validated successfully", Status.SUCCESS)
-    # end_summary()
+    add_summary_row("FB_TOKEN", "found and validated successfully", Status.SUCCESS)
+    end_summary()
 
     # ---------------------------------------------------------------------------------------------
 
