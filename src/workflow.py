@@ -2,12 +2,14 @@
 This module provides functions to calculate the average run interval of GitHub Actions workflows.
 """
 
-from croniter import croniter
-from pathlib import Path
-import yaml
 from datetime import datetime
-from statistics import mean
 from functools import lru_cache
+from pathlib import Path
+from statistics import mean
+
+import yaml
+from croniter import croniter
+
 from src.logger import get_logger
 
 logger = get_logger(__name__)

@@ -2,11 +2,11 @@ from time import sleep
 
 from ruamel.yaml import CommentedMap
 
-from src.console import print_header, print_post_status
+from src.console import print_post_status, print_sequential_header
 from src.facebook import FacebookGraphAPI
 from src.frame_utils import frame_to_timestamp, get_frame
 from src.load_configs import save_configs
-from src.logger import get_logger
+from src.logger import get_logger, log_post_id
 from src.message import format_message
 from src.poster import album_repost, create_post, make_post_public, post_comment, post_random_crop
 from src.subtitles import get_subtitle
@@ -22,7 +22,7 @@ def _save_progress(config: CommentedMap, season, episode, frame):
     config["progress"]["frame"] = frame
 
     save_configs(config)
-    logger.info("Progress saved: S%02dE%02d frame %d", season, episode, frame)
+    logger.info("Progress saved: S%sE%s frame %d", season, episode, frame)
 
 
 def _advance_episode(config: CommentedMap, seasons_list: list, current_season, current_episode):
@@ -39,7 +39,7 @@ def _advance_episode(config: CommentedMap, seasons_list: list, current_season, c
         config["progress"]["episode"] = next_episode
         config["progress"]["frame"] = 0
         save_configs(config)
-        logger.info("Advanced to next episode: S%02dE%02d", current_season, next_episode)
+        logger.info("Advanced to next episode: S%sE%s", current_season, next_episode)
     else:
         season_idx = next(
             (i for i, s in enumerate(seasons_list) if s.get("season") == current_season), None
@@ -52,10 +52,10 @@ def _advance_episode(config: CommentedMap, seasons_list: list, current_season, c
             config["progress"]["episode"] = first_episode
             config["progress"]["frame"] = 0
             save_configs(config)
-            logger.info("Advanced to next season: S%02dE%02d", next_season, first_episode)
+            logger.info("Advanced to next season: S%sE%s", next_season, first_episode)
         else:
             logger.info(
-                "All episodes posted. Progress: S%02dE%02d frame %d",
+                "All episodes posted. Progress: S%sE%s frame %d",
                 current_season, current_episode, config["progress"]["frame"],
             )
 
@@ -128,11 +128,11 @@ def sequencial_post(facebook_client: FacebookGraphAPI, config: CommentedMap):
 
 
     # --- post loop ---
-    print_header(current_season, current_episode, fph, total_episodes)
+    print_sequential_header(current_season, current_episode, current_frame, max_frames)
 
 
-    
-    for frame_number in range(current_frame, stop_frame + 1):
+
+    for frame_number in range(current_frame, stop_frame):
         if frame_number > max_frames:
             _advance_episode(config, seasons_list, current_season, current_episode)
             break
@@ -182,6 +182,9 @@ def sequencial_post(facebook_client: FacebookGraphAPI, config: CommentedMap):
         post_comment(facebook_client, post_id, subtitle_list, sub_comment_enabled)
         # publish the draft post
         make_post_public(facebook_client, post_id)
+
+        # save the post link to the facebook log
+        log_post_id(post_id, frame_number, current_episode, current_season)
 
         # repost to album if enabled
         album_name = None

@@ -7,8 +7,8 @@ It reads environment variables and generates a markdown table with the status of
 """
 
 import os
+from collections.abc import Callable
 from enum import Enum
-from typing import Callable, Dict
 from pathlib import Path
 
 # GitHub Actions GITHUB_STEP_SUMMARY environment variable or default to summary.md for local testing
@@ -50,7 +50,7 @@ def format_warning(text: str) -> str:
     return f"⚠️ {text}"
 
 
-STATUS_FORMATTERS: Dict[Status, Callable[[str], str]] = {
+STATUS_FORMATTERS: dict[Status, Callable[[str], str]] = {
     Status.SUCCESS: format_success,
     Status.ERROR: format_error,
     Status.WARNING: format_warning,
@@ -74,7 +74,13 @@ def start_summary() -> None:
 
     Use with ``end_summary()`` instead of the ``with SummaryTable()``
     context manager when rows need to be added from multiple places.
+
+    Locally (no GITHUB_STEP_SUMMARY) the fallback file is truncated so
+    repeated runs do not accumulate duplicate tables.
     """
+    if not SUMMARY_ENV and SUMMARY_LOCAL_FILE.exists():
+        SUMMARY_LOCAL_FILE.write_text("", encoding="utf-8")
+
     write_summary('<h1 align="center">Resume of execution</h1>')
     write_summary('<div align="center">')
     write_summary("\n| Variable | Status |")

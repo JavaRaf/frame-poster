@@ -7,7 +7,6 @@ import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Constants
 # ─────────────────────────────────────────────────────────────────────────────
@@ -108,7 +107,7 @@ class SanitizingFormatter(logging.Formatter):
     - Formats timestamps using the globally configured UTC offset.
     """
 
-    def formatTime(
+    def formatTime(  # noqa: N802 - method name required by logging.Formatter
         self,
         record: logging.LogRecord,
         datefmt: str | None = None,
@@ -209,46 +208,49 @@ logger = get_logger(__name__)
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+def _format_identifier(value: int | str) -> str:
+    """Zero-pad numeric identifiers for aligned log lines; strings stay as-is."""
+    return f"{value:02d}" if isinstance(value, int) else str(value)
+
+
 def log_post_id(
-    post_id: str,
+    post_id: str | None,
     frame: int,
-    episode: int,
-    season: int,
+    episode: int | str,
+    season: int | str,
 ) -> None:
     """
-    Appends a posted frame link to the Facebook log file.
+    Append the permalink of a posted frame to the Facebook log file.
 
-    The timestamp uses the globally configured UTC offset.
+    Each entry follows the pattern:
+        [YYYY-MM-DD HH:MM:SS] S01E03 | frame 0007 | https://www.facebook.com/{post_id}
+
+    Numeric seasons/episodes are zero-padded; string identifiers
+    (e.g. "OVA-2") are logged as-is. The timestamp uses the globally
+    configured UTC offset.
 
     Args:
-        post_id:
-            The ID returned by the Facebook API.
-
-        frame:
-            The frame number that was posted.
-
-        episode:
-            The episode number.
-
-        season:
-            The season number.
+        post_id: The ID returned by the Facebook API. None logs an error and writes nothing.
+        frame: The frame number that was posted.
+        episode: The episode identifier (number or string).
+        season: The season identifier (number or string).
     """
 
     if not post_id:
         logger.error(
-            "Cannot log post ID: post_id is None for frame %s of episode %02d",
+            "Cannot log post ID: post_id is None for frame %s of episode %s",
             frame,
             episode,
         )
         return
 
-    timestamp = datetime.now(_log_timezone).strftime("%Y-%m-%d %H:%M:%S")
+    timestamp = datetime.now(_log_timezone).strftime(DATE_FORMAT)
 
     entry = (
         f"[{timestamp}] "
-        f"S{season:02d}E{episode:02d}"
-        f" | frame {frame}"
-        f" | https://facebook.com/{post_id}\n"
+        f"S{_format_identifier(season)}E{_format_identifier(episode)}"
+        f" | frame {frame:04d}"
+        f" | https://www.facebook.com/{post_id}\n"
     )
 
     try:

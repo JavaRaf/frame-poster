@@ -4,8 +4,8 @@ This project posts frames from an episode repository to Facebook with optional s
 
 ## Configuration
 
-- `configs.yml` contains the app settings and Facebook API version.
-- `src/settings.py` centralizes project paths and environment loading.
+- `config.yml` contains the app settings, message templates and Facebook API version.
+- Progress is persisted back into `config.yml` (`progress:` section) after each post.
 
 ## Running locally
 
@@ -18,14 +18,12 @@ Use the included virtual environment Python:
 Example:
 
 ```bash
-./.venv/Scripts/python.exe main.py \
-  --config-file configs.yml \
-  --fb-token "$FB_TOKEN" \
+./.venv/Scripts/python.exe main.py --fb-token "$FB_TOKEN"
 ```
 
 ## Facebook token
 
-- `FB_TOKEN` can be provided via environment variable.
+- `FB_TOKEN` can be provided via environment variable (or a `.env` file).
 - `--fb-token` overrides the environment value for the current run.
 
 ## Docker
@@ -40,8 +38,7 @@ Run it with a mounted config file and token:
 
 ```bash
 docker run --rm \
-  -v "$PWD/configs.yml:/app/configs.yml" \
+  -v "$PWD/config.yml:/app/config.yml" \
   -e FB_TOKEN="<your_token>" \
   frame-poster
 ```
-

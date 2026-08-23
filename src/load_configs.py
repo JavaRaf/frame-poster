@@ -1,6 +1,7 @@
+from pathlib import Path
+
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
-from pathlib import Path
 
 from src.config_validator import validate_config
 
@@ -23,7 +24,7 @@ def load_configs() -> CommentedMap:
         CommentedMap: The configuration data loaded from the YAML file with comments preserved
     """
     try:
-        with open(CONFIG_PATH, "r", encoding="utf-8") as file:
+        with open(CONFIG_PATH, encoding="utf-8") as file:
             return yaml.load(file)
     except (Exception, OSError) as e:
         print(f"Error loading config file {CONFIG_PATH}: {e}")
