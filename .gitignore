@@ -12,6 +12,7 @@ __pycache__/
 .env
 test.py
 frames/
+images/
 temp/
 fixs.txt
 .ruff_cache/

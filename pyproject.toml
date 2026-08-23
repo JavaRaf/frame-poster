@@ -4,7 +4,6 @@ version = "0.1.0"
 description = "Facebook frame poster application"
 requires-python = "==3.13"
 dependencies = [
-    "pydantic>=2.0,<3",
     "ruamel.yaml==0.18.15",
     "python-dotenv==1.1.1",
     "langdetect==1.0.9",
