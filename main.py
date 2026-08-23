@@ -1,15 +1,14 @@
 import os
 
+from dotenv import load_dotenv
 from ruamel.yaml import CommentedMap
+
+from src.console import parse_args
 from src.facebook import ApiVersion, FacebookGraphAPI
 from src.load_configs import load_and_validate
-from src.summary_step import start_summary, add_summary_row, end_summary, Status
 from src.logger import get_logger, set_timezone_offset
-from src.sequencial_post import sequencial_post
 from src.random_post import random_post
-from src.console import parse_args
-from dotenv import load_dotenv
-
+from src.sequencial_post import sequencial_post
 
 # define logger for registre errors in code
 logger = get_logger(__name__)
@@ -31,7 +30,8 @@ def main(argv: list[str] | None = None) -> None:
     set_timezone_offset(config.get("timezone", 0))
 
     facebook_client = FacebookGraphAPI(
-        access_token=os.environ["FB_TOKEN"], api_version=config.get("api_version", ApiVersion.V25_0)
+        access_token=os.environ["FB_TOKEN"],
+        api_version=config.get("facebook_api_version", ApiVersion.V25_0),
     )
 
     # ---------------------------------------------------------------------------------------------

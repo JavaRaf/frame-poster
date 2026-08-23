@@ -1,11 +1,9 @@
 from enum import Enum
 from pathlib import Path
-
 from threading import Lock
 
 import httpx
 from tenacity import (
-    RetryError,
     retry,
     retry_if_exception_type,
     stop_after_attempt,
@@ -29,16 +27,72 @@ class ApiVersion(str, Enum):
     V25_0 = "v25.0"
 
 
+def _api_retry(error_callback):
+    """Build a fresh retry decorator for Graph API calls.
+
+    Exceptions propagate to tenacity so the retries actually happen; when all
+    attempts fail, ``error_callback`` logs the failure and returns the method's
+    documented failure value (None or False) instead of raising.
+    """
+    return retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type(httpx.HTTPError),
+        before_sleep=lambda retry_state: logger.warning(
+            "%s failed (attempt %d), retrying...",
+            getattr(retry_state.fn, "__name__", "graph-api-call"),
+            retry_state.attempt_number,
+        ),
+        retry_error_callback=error_callback,
+    )
+
+
+def _fail_none(retry_state) -> None:
+    """Log final failure and return None."""
+    logger.error(
+        "%s failed after %d attempts: %s",
+        getattr(retry_state.fn, "__name__", "graph-api-call"),
+        retry_state.attempt_number,
+        retry_state.outcome.exception(),
+    )
+    return None
+
+
+def _fail_false(retry_state) -> bool:
+    """Log final failure and return False."""
+    logger.error(
+        "%s failed after %d attempts: %s",
+        getattr(retry_state.fn, "__name__", "graph-api-call"),
+        retry_state.attempt_number,
+        retry_state.outcome.exception(),
+    )
+    return False
+
+
+def _fail_token(retry_state) -> tuple[bool, str]:
+    """Log final failure and return validate_token's failure tuple."""
+    reason = str(retry_state.outcome.exception())
+    logger.error(
+        "Facebook token validation failed after %d attempts: %s",
+        retry_state.attempt_number,
+        reason,
+    )
+    return False, reason
+
+
 class FacebookGraphAPI:
     def __init__(
         self,
         access_token: str,
-        api_version: ApiVersion = ApiVersion.V25_0,
+        api_version: ApiVersion | str = ApiVersion.V25_0,
     ):
         self.access_token = self._normalize_token(access_token)
+        # Accept plain strings from config.yml (e.g. facebook_api_version: "v25.0")
+        if isinstance(api_version, str):
+            api_version = ApiVersion(api_version)
         self.api_version = api_version
         self.client = httpx.Client(
-            base_url=f"https://graph.facebook.com/{api_version.value}",
+            base_url=f"https://graph.facebook.com/{self.api_version.value}",
             timeout=httpx.Timeout(30, connect=10),
         )
         self._album_name_cache: dict[str, str | None] = {}
@@ -69,12 +123,7 @@ class FacebookGraphAPI:
         token = token.strip().removeprefix("FB_TOKEN=")
         return token or None
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type(httpx.HTTPError),
-        reraise=True,
-    )
+    @_api_retry(_fail_token)
     def validate_token(self) -> tuple[bool, str]:
         """Validate the Facebook token.
 
@@ -83,30 +132,13 @@ class FacebookGraphAPI:
             (False, reason) when the token is missing or the call fails.
         """
         if not self.access_token:
-            reason = "Facebook access token is not defined"
-            logger.error("%s", reason)
-            return False, reason
+            return False, "Facebook access token is not defined"
 
-        try:
-            response = self.client.get("/me", headers=self._headers)
-            response.raise_for_status()
-            return True, response.text
+        response = self.client.get("/me", headers=self._headers)
+        response.raise_for_status()
+        return True, response.text
 
-        except RetryError as exc:
-            reason = str(exc)
-            logger.error("Facebook token invalid or expired after attempts: %s", reason)
-            return False, reason
-        except httpx.HTTPError as exc:
-            reason = f"{type(exc).__name__}: {exc}"
-            logger.error("Facebook token invalid or expired: %s", reason)
-            return False, reason
-
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type(httpx.HTTPError),
-        reraise=True,
-    )
+    @_api_retry(_fail_none)
     def upload_photo(
         self,
         frame_path: Path,
@@ -139,26 +171,18 @@ class FacebookGraphAPI:
                     headers=self._headers,
                 )
                 response.raise_for_status()
-                try:
-                    photo_id = response.json().get("id")
-                    return photo_id
-                except ValueError:
-                    logger.error("invalid response from API: %s", response.text)
-                    return None
 
-        except httpx.HTTPError as e:
-            logger.error("error uploading photo %s: %s", frame_path, e)
-            raise
         except OSError as e:
             logger.error("error opening file %s: %s", frame_path, e)
             return None
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type(httpx.HTTPError),
-        reraise=True,
-    )
+        try:
+            return response.json().get("id")
+        except ValueError:
+            logger.error("invalid response from API: %s", response.text)
+            return None
+
+    @_api_retry(_fail_none)
     def create_unpublished_post(self, message: str, photo_id: str) -> str | None:
         """Create a draft (unpublished) post referencing an already uploaded photo."""
         payload = {
@@ -166,45 +190,28 @@ class FacebookGraphAPI:
             "attached_media": [{"media_fbid": photo_id}],
             "published": "false",
         }
+        response = self.client.post("/me/feed", json=payload, headers=self._headers)
+        response.raise_for_status()
+
         try:
-            response = self.client.post("/me/feed", json=payload, headers=self._headers)
-            response.raise_for_status()
-            post_id = response.json().get("id")
-            return post_id
-        except httpx.HTTPError as e:
-            logger.error("Failed to create draft post after attempts: %s", e)
-            return None
+            return response.json().get("id")
         except ValueError:
             logger.error("invalid response from API: %s", response.text)
             return None
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type(httpx.HTTPError),
-        reraise=True,
-    )
+    @_api_retry(_fail_false)
     def publish_post(self, post_id: str) -> bool:
         """Publish a post previously created as a draft."""
-        try:
-            response = self.client.post(
-                f"/{post_id}", params={"is_published": "true"}, headers=self._headers
-            )
-            response.raise_for_status()
-            return True
-        except httpx.HTTPError as e:
-            logger.error("Failed to publish post %s after attempts: %s", post_id, e)
-            return False
+        response = self.client.post(
+            f"/{post_id}", params={"is_published": "true"}, headers=self._headers
+        )
+        response.raise_for_status()
+        return True
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type(httpx.HTTPError),
-        reraise=True,
-    )
+    @_api_retry(_fail_false)
     def comments_post(
         self, post_id: str, message: str, frame_path: Path | None = None
-    ) -> str | None:
+    ) -> str | bool | None:
         """Comment on a post.
 
         Args:
@@ -213,7 +220,7 @@ class FacebookGraphAPI:
             frame_path: Optional path to an image attached to the comment.
 
         Returns:
-            True if the comment was created successfully, False otherwise.
+            The comment ID on success, False otherwise.
         """
         try:
             if frame_path:
@@ -231,24 +238,19 @@ class FacebookGraphAPI:
                     headers=self._headers,
                 )
 
-            response.raise_for_status()
-            comment_id = response.json().get("id")
-
-            return comment_id
-
-        except httpx.HTTPError as e:
-            logger.error("Failed to post comment after attempts: %s", e)
-            return False
         except OSError as e:
             logger.error("Failed to open image %s: %s", frame_path, e)
             return False
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type(httpx.HTTPError),
-        reraise=True,
-    )
+        response.raise_for_status()
+
+        try:
+            return response.json().get("id")
+        except ValueError:
+            logger.error("invalid response from API: %s", response.text)
+            return False
+
+    @_api_retry(_fail_false)
     def update_bio(self, message: str) -> bool:
         """Update the Facebook bio.
 
@@ -266,13 +268,9 @@ class FacebookGraphAPI:
             logger.warning("Bio message is too long, truncating to 101 characters.", exc_info=True)
             message = message[:101]
 
-        try:
-            response = self.client.post("/me", params={"about": message}, headers=self._headers)
-            response.raise_for_status()
-            return True
-        except httpx.HTTPError as e:
-            logger.error("Failed to update bio after attempts: %s", e)
-            return False
+        response = self.client.post("/me", params={"about": message}, headers=self._headers)
+        response.raise_for_status()
+        return True
 
     def album_name(self, album_id: str) -> str | None:
         """Return the name of an album with thread-safe cache.
@@ -293,23 +291,12 @@ class FacebookGraphAPI:
             self._album_name_cache[album_id] = name
         return name
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type(httpx.HTTPError),
-        reraise=True,
-    )
+    @_api_retry(_fail_none)
     def _fetch_album_name(self, album_id: str) -> str | None:
         """Fetch the album name from the API."""
-        try:
-            response = self.client.get(
-                f"/{album_id}", params={"fields": "name"}, headers=self._headers
-            )
-            response.raise_for_status()
-            return response.json().get("name")
-        except httpx.HTTPError as e:
-            logger.error("Failed to get album name %s after attempts: %s", album_id, e)
-            return None
+        response = self.client.get(f"/{album_id}", params={"fields": "name"}, headers=self._headers)
+        response.raise_for_status()
+        return response.json().get("name")
 
     def album_repost(
         self,
