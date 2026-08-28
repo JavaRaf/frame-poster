@@ -14,7 +14,7 @@ from rich.markup import escape
 # Shared console – use this everywhere instead of raw print().
 console = Console()
 
-SEPARATOR = "______________________________________________________________________________________"
+SEPARATOR = "_______________________________________________________________________"
 
 
 def _fmt_id(value: int | str) -> str:
