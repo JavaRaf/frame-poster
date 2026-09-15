@@ -2,7 +2,7 @@
 Filters module contains functions for applying filters to frames
 before posting them as random posts.
 
-Ported from JavaRaf/rand-frame and adapted to the frame-poster layout.
+Ported from py-rafasx/rand-frame and adapted to the frame-poster layout.
 The palette filter and the variable-offset mirror are ports from
 alefouau/ehtfio_random.
 """

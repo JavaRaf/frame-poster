@@ -1,7 +1,7 @@
 ﻿"""
 Random post mode: posts random frames from any configured episode.
 
-Ported from JavaRaf/rand-frame and adapted to the frame-poster architecture.
+Ported from py-rafasx/rand-frame and adapted to the frame-poster architecture.
 Each execution posts ``posting.fph`` frames, optionally applying weighted
 image filters (see the "filters" section in config.yml), avoiding repeated
 frames through FrameHistory persistence between runs.

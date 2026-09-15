@@ -8,16 +8,16 @@
 #   "username/repository/branch/"
 #
 # Example:
-#   github_repo: "JavaRaf/season2/master/"
+#   github_repo: "py-rafasx/season2/master/"
 #
 # The final URL is built like this:
 #   https://raw.githubusercontent.com/{github_repo}{episode}/{frame}.jpg
 #
 # Concrete example:
-#   github_repo = "JavaRaf/season2/master/"
+#   github_repo = "py-rafasx/season2/master/"
 #   episode     = 1   (folder "01")
 #   frame       = 5   (file "0005.jpg")
-#   → https://raw.githubusercontent.com/JavaRaf/season2/master/01/0005.jpg
+#   → https://raw.githubusercontent.com/py-rafasx/season2/master/01/0005.jpg
 #
 # Expected repository structure:
 #   username/
@@ -43,7 +43,7 @@ seasons:                                                # type: list of objects
         img_fps: 3.5                                    # type: integer | float - Frames per second of the source video (needed for proper timing subtitles)
         max_frames: 5040                                # type: integer - Maximum number of frames obtained from the video after cutted
         album_id: 703927706019990                       # type: integer - Facebook album ID for reposting frames in Facebook (optional)
-        github_repo: "JavaRaf/season2/master/01/"       # type: string - Github repository path for this episode (required)
+        github_repo: "py-rafasx/season2/master/01/"     # type: string - Github repository path for this episode (required)
 
     # add more episodes here
 
